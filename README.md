@@ -83,18 +83,18 @@ The callback function provided is the only way the paired device can send data t
 
 Device Interface API
 ============ 
-All methods are asynchronous (```isDeviceOpen``` being the only synchronous exception).  Be sure to catch all exceptions - as any error occured upon invocation of these functions will throw an [Error](#4.-Error-Object).  
+All methods are asynchronous (```isDeviceOpen``` being the only synchronous exception).  Be sure to catch all exceptions - as any error occured upon invocation of these functions will throw an [Error](#4-Error-Object).  
   
 | Function | Input Parameters | Output | Notes |
 |:--------:|:-------:|:-------:|:--------:|
-| scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#1.-device-object) | [Please refer to examples below](#Callback-Examples). Device name is optional. **Despite the device being returned in an open state - it is recommended to open the device prior to interaction** |
-| startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#5.-Success-Object) | emvOptions is optional - any property supplied will override the default |
+| scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#1-Device-Object) | [Please refer to examples below](#Callback-Examples). Device name is optional. **Despite the device being returned in an open state - it is recommended to open the device prior to interaction** |
+| startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#5-Success-Object) | emvOptions is optional - any property supplied will override the default |
 | cancelTransaction | none | `void` | Cancel any transaction that is in progress. |
-| openDevice | none | [Success](#5.-Success-Object) | opens paired device to receive commands |
-| closeDevice | none | [Success](#5.-Success-Object) | clears session (when applicable) and closes device safely |
-| clearSession | none | `void` (SCRA) [Success](#5.-Success-Object)  (PinPad) | removes previous card data from device's volatile memory. Only PinPad devices have session  |
-| deviceInfo | none | [Device Information](#6.-Device-Information) | Be aware this call will clear device session prior to returning device information |
-| requestCardSwipe | [swipeOptions](#Swipe-Options-Object) | [Success](#5.-Success-Object) | swipeOptions is optional. Any property supplied will override the default|
+| openDevice | none | [Success](#5-Success-Object) | opens paired device to receive commands |
+| closeDevice | none | [Success](#5-Success-Object) | clears session (when applicable) and closes device safely |
+| clearSession | none | `void` (SCRA) [Success](#5-Success-Object)  (PinPad) | removes previous card data from device's volatile memory. Only PinPad devices have session  |
+| deviceInfo | none | [Device Information](#6-Device-Information) | Be aware this call will clear device session prior to returning device information |
+| requestCardSwipe | [swipeOptions](#Swipe-Options-Object) | [Success](#5-Success-Object) | swipeOptions is optional. Any property supplied will override the default|
 | isDeviceOpen | none | ```Boolean``` | synchronous function that returns device's open status |
 
 
@@ -159,8 +159,8 @@ User defined callback functions can be as granular as desired.  For this purpose
   
 | Callback | Return object | Notes |
 |:--------:|:-------------:|:-----:|
-| transactionCallback | [Transaction Result Object](#2.-transaction-result-object) | Transaction data. Object structure will depend on which type of transaction was requested |
-| errorCallback | [Error Object](#5.-error-object) | If provided, all internal errors that cannot be thrown to a caller will be piped to this callback. If not provided, internal errors will log to JavaScript console. All errors pertaining to functions invoked via the [deviceInterface](#Device-Interface-API) will always be thrown back to the caller |
+| transactionCallback | [Transaction Result Object](#2-Transaction-Result-Object) | Transaction data. Object structure will depend on which type of transaction was requested |
+| errorCallback | [Error Object](#5-Error-Object) | If provided, all internal errors that cannot be thrown to a caller will be piped to this callback. If not provided, internal errors will log to JavaScript console. All errors pertaining to functions invoked via the [deviceInterface](#Device-Interface-API) will always be thrown back to the caller |
 | displayCallback | Display Message Object | message to display directly to the end user. This callback is only used by SCRA devices. PinPad devices will display messages directly on the device |
 | transactionStatusCallback | Transaction Status Object | Status, Progress, Messages, and Codes will all be piped to this callback. You can throttle [```reportVerbosity```](#*__SCRA-properties-only__*) on SCRA devices |
 | disconnectHandler | Disconnect Event (inherits from [Event](https://developer.mozilla.org/en-US/docs/Web/API/Event)) | disconnect events are sent to: disconnectHandler if one is provided, or main callback (```transactionCallback```) if not provided|
