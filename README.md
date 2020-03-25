@@ -7,7 +7,7 @@ Interface between [MagTek®](https://www.magtek.com) Bluetooth devices, and Chro
 ## Browser Support
 
 ![Chrome](https://raw.github.com/alrra/browser-logos/master/src/chrome/chrome_48x48.png) | ![Opera](https://raw.github.com/alrra/browser-logos/master/src/opera/opera_48x48.png) | ![Edge](https://raw.github.com/alrra/browser-logos/master/src/edge/edge_48x48.png) | ![Samsung](https://raw.githubusercontent.com/alrra/browser-logos/master/src/samsung-internet/samsung-internet_48x48.png) |
---- | --- | --- | --- | --- | --- |
+--- | --- | --- | --- |
 Latest ✔ | Latest ✔ | Latest ✔ | Latest ✔ | 
 
 This library utilizes [WebBluetooth API](https://www.w3.org/community/web-bluetooth).  
@@ -84,9 +84,9 @@ The callback function provided is the only way the paired device can send data t
 Device Interface API
 ============ 
 All methods are asynchronous (```isDeviceOpen``` being the only synchronous exception).  Be sure to catch all exceptions - as any error occured upon invocation of these functions will throw an [Error](#4.-Error-Object).  
-
+  
 | Function | Input Parameters | Output | Notes |
-|:--------------------:|:-------:|:-------:|:--------:|:--------:|
+|:--------:|:-------:|:-------:|:--------:|
 | scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#Device-Object) | [Please refer to examples below](#Callback-Examples). Device name is optional. **Despite the device being returned in an open state - it is recommended to open the device prior to interaction** |
 | startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#5.-Success-Object) | emvOptions is optional - any property supplied will override the default |
 | cancelTransaction | none | `void` | Cancel any transaction that is in progress. |
