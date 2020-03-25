@@ -37,7 +37,7 @@ If you would like to purchase a device, please head over to [this store](https:/
 
 Usage
 =======
-The implementation below will prompt a pair window displaying all MagTek devices in range.  Once the end user selects the appropriate device from the pair window, the response to this function call will be a [device object](#1.-device-object).  
+The implementation below will prompt a pair window displaying all MagTek devices in range.  Once the end user selects the appropriate device from the pair window, the response to this function call will be a [device object](#1-Device-Object).  
 The device pair window is part of the [WebBluetooth API](https://www.w3.org/community/web-bluetooth), and is currently mandatory (no bypass exists as of this time).
 
 ```javascript
