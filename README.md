@@ -167,7 +167,7 @@ User defined callback functions can be as granular as desired.  For this purpose
 | transactionCallback | [Transaction Result Object](#2-Transaction-Result-Object) | Transaction data. Object structure will depend on which type of transaction was requested |
 | errorCallback | [Error Object](#5-Error-Object) | If provided, all internal errors that cannot be thrown to a caller will be piped to this callback. If not provided, internal errors will log to JavaScript console. All errors pertaining to functions invoked via the [deviceInterface](#Device-Interface-API) will always be thrown back to the caller |
 | displayCallback | [Display Message Object](#3-Display-Message-Object) | Message to display directly to the end user. This callback is only used by SCRA devices. PinPad devices will display messages directly on the device |
-| transactionStatusCallback | [Transaction Status Object](#4-Transaction-Status-Object) | Status, Progress, Messages, and Codes will all be piped to this callback. You can throttle [```reportVerbosity```](#*__SCRA-properties-only__*) on SCRA devices |
+| transactionStatusCallback | [Transaction Status Object](#4-Transaction-Status-Object) | Status, Progress, Messages, and Codes will all be piped to this callback. You can throttle [```reportVerbosity```](#SCRA-properties-only) on SCRA devices |
 | disconnectHandler | Disconnect Event | Disconnect Event inherits from [Event](https://developer.mozilla.org/en-US/docs/Web/API/Event). Disconnect events are emitted every time a device disconnects (closes) |
 
 # Callback Examples
