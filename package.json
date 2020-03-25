@@ -1,0 +1,39 @@
+{
+  "name": "magensa-bluetooth",
+  "version": "1.0.0",
+  "description": "Interface between Chromium browser and MagTek devices",
+  "main": "magensa-bluetooth.js",
+  "author": "Luke Turpin luke.turpin@magtek.com",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"No test specified\"",
+    "build": "webpack --mode=production",
+    "start": "webpack && webpack-dev-server"
+  },
+  "bin": {
+    "magensa-bluetooth": "./bin/magensa-bluetooth"
+  },
+  "bugs": {
+    "url": "https://github.com/Magensa/magensa-bluetooth/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Magensa/magensa-bluetooth.git"
+  },
+  "publishConfig": {
+    "tag": "next"
+  },
+  "homepage": "https://github.com/Magensa/magensa-bluetooth",
+  "devDependencies": {
+    "@babel/core": "^7.7.5",
+    "@babel/plugin-proposal-class-properties": "^7.7.4",
+    "@babel/preset-env": "^7.7.6",
+    "acorn-dynamic-import": "^4.0.0",
+    "babel-loader": "^8.0.6",
+    "babel-plugin-transform-es2015-parameters": "^6.24.1",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10",
+    "webpack-dev-server": "^3.9.0"
+  }
+}
