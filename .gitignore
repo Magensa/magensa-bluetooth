@@ -25,7 +25,7 @@ coverage
 
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
-dist
+dist/*.tgz
 
 # Dependency directories
 node_modules

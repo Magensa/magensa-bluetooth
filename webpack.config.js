@@ -1,4 +1,5 @@
 const path = require('path');
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   entry: './src/deviceEntry.js',
@@ -11,6 +12,12 @@ module.exports = {
     sourceMapFilename: 'magensa-bluetooth.map'
   },
   devtool: 'nosources-source-map',
+  plugins: [
+    new CopyPlugin([
+      { from: 'README.md', to: path.resolve(__dirname, 'dist') },
+      { from: 'package.json', to: path.resolve(__dirname, 'dist') }
+    ])
+  ],
   module: {
     rules: [
       {
@@ -19,7 +26,8 @@ module.exports = {
         use: {
           loader: 'babel-loader',
         }
-      }
+      },
+
     ]
   }
 };
