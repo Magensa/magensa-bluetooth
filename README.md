@@ -1,6 +1,6 @@
 magensa-bluetooth
 ==============
-[![npm version](https://img.shields.io/npm/v/magensa-bluetooth?style=for-the-badge)](https://www.npmjs.org/package/magensa-bluetooth)  
+[![npm version](https://img.shields.io/npm/v/magensa-bluetooth.svg?style=for-the-badge)](https://www.npmjs.org/package/magensa-bluetooth)  
 Interface between [MagTek®](https://www.magtek.com) Bluetooth devices, and Chromium based browsers.  
 
 
