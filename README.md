@@ -33,7 +33,7 @@ In order to utilize this library, you must have a MagTek® device with Bluetooth
 - [DynaPro Mini](https://www.magtek.com/product/dynapro-mini)  
 
 If you have a device, and would like to see this library in action, please head over to our [Playground](https://btplayground.magensa.dev).  
-If you would like to purchase a device, please head over to [this store](https://shop.magtek.com).  
+If you would like to purchase a device, please head over to the [MagTek Store](https://shop.magtek.com).  
 
 Usage
 =======
@@ -50,10 +50,12 @@ function exampleCallback(dataObj) {
 //Using Promises:
 scanForDevices(exampleCallback).then( connectedDevice => 
     /*
-        'connectedDevice', in this example, is a return object containing device information and the interface needed to interact with your paired device.
-        See Device Object under the 'Return Objects' header below, for more details.
+        'connectedDevice', in this example, is a return object containing device information  
+        and the interface needed to interact with your paired device.  
+        See Device Object under the 'Return Objects' header below, for more details.  
 
-        Store this device object in a manner that makes sense for your application. This example saves the object to a global namespace:
+        Store this device object in a manner that makes sense for your application.  
+        This example saves the object to a global namespace:  
     */
     window.MagTekDevice = connectedDevice;
     /*
@@ -67,7 +69,10 @@ const examplePairing = async() => {
     try {
         const connectedDevice = await scanForDevices(exampleCallback);
 
-        //Now "connectedDevice" contains the device object. Store this in a manner that makes sense for your application.
+        /*  
+            Now "connectedDevice" contains the device object.  
+            Store this in a manner that makes sense for your application.  
+        */
         window.MagTekDevice = connectedDevice;
     }
     catch(error) {
@@ -83,18 +88,18 @@ The callback function provided is the only way the paired device can send data t
 
 Device Interface API
 ============ 
-All methods are asynchronous (```isDeviceOpen``` being the only synchronous exception).  Be sure to catch all exceptions - as any error occured upon invocation of these functions will throw an [Error](#4-Error-Object).  
+All methods are asynchronous (```isDeviceOpen``` being the only synchronous exception).  Be sure to catch all exceptions - as any error occured upon invocation of these functions will throw an [Error](#5-Error-Object).  
   
 | Function | Input Parameters | Output | Notes |
 |:--------:|:-------:|:-------:|:--------:|
 | scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#1-Device-Object) | [Please refer to examples below](#Callback-Examples). Device name is optional. **Despite the device being returned in an open state - it is recommended to open the device prior to interaction** |
-| startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#5-Success-Object) | emvOptions is optional - any property supplied will override the default |
+| startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#6-Success-Object) | Initiates EMV transaction. 'emvOptions' is optional - any property supplied will override the default |
 | cancelTransaction | none | `void` | Cancel any transaction that is in progress. |
-| openDevice | none | [Success](#5-Success-Object) | opens paired device to receive commands |
-| closeDevice | none | [Success](#5-Success-Object) | clears session (when applicable) and closes device safely |
-| clearSession | none | `void` (SCRA) [Success](#5-Success-Object)  (PinPad) | removes previous card data from device's volatile memory. Only PinPad devices have session  |
-| deviceInfo | none | [Device Information](#6-Device-Information) | Be aware this call will clear device session prior to returning device information |
-| requestCardSwipe | [swipeOptions](#Swipe-Options-Object) | [Success](#5-Success-Object) | swipeOptions is optional. Any property supplied will override the default|
+| openDevice | none | [Success](#6-Success-Object) | Opens paired device to receive commands |
+| closeDevice | none | [Success](#6-Success-Object) | Clears session (when applicable) and closes device safely |
+| clearSession | none | `void` (SCRA) [Success](#6-Success-Object)  (PinPad) | Removes previous card data from device's volatile memory. Only PinPad devices have session  |
+| deviceInfo | none | [Device Information](#7-Device-Information) | Be aware this call will clear device session prior to returning device information |
+| requestCardSwipe | [swipeOptions](#Swipe-Options-Object) | [Success](#6-Success-Object) | swipeOptions is optional. Any property supplied will override the default|
 | isDeviceOpen | none | ```Boolean``` | synchronous function that returns device's open status |
 
 
@@ -161,9 +166,9 @@ User defined callback functions can be as granular as desired.  For this purpose
 |:--------:|:-------------:|:-----:|
 | transactionCallback | [Transaction Result Object](#2-Transaction-Result-Object) | Transaction data. Object structure will depend on which type of transaction was requested |
 | errorCallback | [Error Object](#5-Error-Object) | If provided, all internal errors that cannot be thrown to a caller will be piped to this callback. If not provided, internal errors will log to JavaScript console. All errors pertaining to functions invoked via the [deviceInterface](#Device-Interface-API) will always be thrown back to the caller |
-| displayCallback | Display Message Object | message to display directly to the end user. This callback is only used by SCRA devices. PinPad devices will display messages directly on the device |
-| transactionStatusCallback | Transaction Status Object | Status, Progress, Messages, and Codes will all be piped to this callback. You can throttle [```reportVerbosity```](#*__SCRA-properties-only__*) on SCRA devices |
-| disconnectHandler | Disconnect Event (inherits from [Event](https://developer.mozilla.org/en-US/docs/Web/API/Event)) | disconnect events are sent to: disconnectHandler if one is provided, or main callback (```transactionCallback```) if not provided|
+| displayCallback | [Display Message Object](#3-Display-Message-Object) | Message to display directly to the end user. This callback is only used by SCRA devices. PinPad devices will display messages directly on the device |
+| transactionStatusCallback | [Transaction Status Object](#4-Transaction-Status-Object) | Status, Progress, Messages, and Codes will all be piped to this callback. You can throttle [```reportVerbosity```](#*__SCRA-properties-only__*) on SCRA devices |
+| disconnectHandler | Disconnect Event | Disconnect Event inherits from [Event](https://developer.mozilla.org/en-US/docs/Web/API/Event). Disconnect events are emitted every time a device disconnects (closes) |
 
 # Callback Examples
 This is the most basic example - using Promises.
@@ -252,7 +257,7 @@ const callbacks = (function() {
         /*
             Handle all user display messages.
             For SCRA devices - EMV standards state this message must be displayed directly to the user.
-            PinPad devices will use this callback, and will instead use the device display.
+            PinPad devices will not use this callback, and will instead use the device display.
             The message language is determined by device configuration.
         */
         document.getElementById('display-to-user').innerText = displayMessage;
@@ -279,7 +284,7 @@ scanForDevices(callbacks)
 //Using async/await
 const pairDevice = async() => {
     try {
-        let deviceResp = await scanForDevices(callbacks);
+        const deviceResp = await scanForDevices(callbacks);
         window.MagTekDevice = deviceResp;
     }
     catch(error) {
@@ -313,7 +318,7 @@ const exampleDisplayMessageHandler = ({ displayMessage }) => {
     /*
         Handle all user display messages.
         For SCRA devices - EMV standards state this message must be displayed directly to the user.
-        PinPad devices will use this callback, and will instead use the device display.
+        PinPad devices will not use this callback, and will instead use the device display.
         The message language is determined by device configuration.
     */
     document.getElementById('display-to-user').innerText = displayMessage;
@@ -347,7 +352,7 @@ scanForDevices(callBackObject)
 //Using async/await
 const connectDevice = async() => {
     try {
-        let deviceResp = await scanForDevices(callBackObject);
+        const deviceResp = await scanForDevices(callBackObject);
         window.MagTekDevice = deviceResp;
     }
     catch(error) {
