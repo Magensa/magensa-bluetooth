@@ -8,8 +8,8 @@ Interface between [MagTek®](https://www.magtek.com) Bluetooth devices, and Chro
 
 ![Chrome](https://raw.github.com/alrra/browser-logos/master/src/chrome/chrome_48x48.png) | ![Opera](https://raw.github.com/alrra/browser-logos/master/src/opera/opera_48x48.png) | ![Edge](https://raw.github.com/alrra/browser-logos/master/src/edge/edge_48x48.png) | ![Samsung](https://raw.githubusercontent.com/alrra/browser-logos/master/src/samsung-internet/samsung-internet_48x48.png) |
 --- | --- | --- | --- |
-Latest ✔ | Latest ✔ | Latest ✔ | Latest ✔ | 
-
+Latest ✔ | Latest ✔ | Latest ✔ | Latest ✔ |  
+  
 This library utilizes [WebBluetooth API](https://www.w3.org/community/web-bluetooth).  
 WebBluetooth compatibility information can be found at the [implementation status README](https://github.com/WebBluetoothCG/web-bluetooth/blob/master/implementation-status.md) and [caniuse.com](https://caniuse.com/#feat=web-bluetooth).  
 Additionally, we have put together detailed compatibility information, as well as initial pair instructions, in our [Playground](https://btplayground.magensa.dev/compatibility-info).
@@ -37,7 +37,7 @@ If you would like to purchase a device, please head over to [this store](https:/
 
 Usage
 =======
-The implementation below will prompt a pair window displaying all MagTek devices in range.  Once the end user selects the appropriate device from the pair window, the response to this function call will be a [device object](#1.-Device-Object).  
+The implementation below will prompt a pair window displaying all MagTek devices in range.  Once the end user selects the appropriate device from the pair window, the response to this function call will be a [device object](#1.-device-object).  
 The device pair window is part of the [WebBluetooth API](https://www.w3.org/community/web-bluetooth), and is currently mandatory (no bypass exists as of this time).
 
 ```javascript
@@ -87,7 +87,7 @@ All methods are asynchronous (```isDeviceOpen``` being the only synchronous exce
   
 | Function | Input Parameters | Output | Notes |
 |:--------:|:-------:|:-------:|:--------:|
-| scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#Device-Object) | [Please refer to examples below](#Callback-Examples). Device name is optional. **Despite the device being returned in an open state - it is recommended to open the device prior to interaction** |
+| scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#1.-device-object) | [Please refer to examples below](#Callback-Examples). Device name is optional. **Despite the device being returned in an open state - it is recommended to open the device prior to interaction** |
 | startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#5.-Success-Object) | emvOptions is optional - any property supplied will override the default |
 | cancelTransaction | none | `void` | Cancel any transaction that is in progress. |
 | openDevice | none | [Success](#5.-Success-Object) | opens paired device to receive commands |
@@ -159,8 +159,8 @@ User defined callback functions can be as granular as desired.  For this purpose
   
 | Callback | Return object | Notes |
 |:--------:|:-------------:|:-----:|
-| transactionCallback | [Transaction Result Object](#2.-Transaction-Result-Object:) | Transaction data. Object structure will depend on which type of transaction was requested |
-| errorCallback | [Error Object](#5.-Error-Object) | If provided, all internal errors that cannot be thrown to a caller will be piped to this callback. If not provided, internal errors will log to JavaScript console. All errors pertaining to functions invoked via the [deviceInterface](#Device-Interface-API) will always be thrown back to the caller |
+| transactionCallback | [Transaction Result Object](#2.-transaction-result-object) | Transaction data. Object structure will depend on which type of transaction was requested |
+| errorCallback | [Error Object](#5.-error-object) | If provided, all internal errors that cannot be thrown to a caller will be piped to this callback. If not provided, internal errors will log to JavaScript console. All errors pertaining to functions invoked via the [deviceInterface](#Device-Interface-API) will always be thrown back to the caller |
 | displayCallback | Display Message Object | message to display directly to the end user. This callback is only used by SCRA devices. PinPad devices will display messages directly on the device |
 | transactionStatusCallback | Transaction Status Object | Status, Progress, Messages, and Codes will all be piped to this callback. You can throttle [```reportVerbosity```](#*__SCRA-properties-only__*) on SCRA devices |
 | disconnectHandler | Disconnect Event (inherits from [Event](https://developer.mozilla.org/en-US/docs/Web/API/Event)) | disconnect events are sent to: disconnectHandler if one is provided, or main callback (```transactionCallback```) if not provided|
