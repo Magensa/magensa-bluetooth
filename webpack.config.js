@@ -15,7 +15,8 @@ module.exports = {
   plugins: [
     new CopyPlugin([
       { from: 'README.md', to: path.resolve(__dirname, 'dist') },
-      { from: 'package.json', to: path.resolve(__dirname, 'dist') }
+      { from: 'package.json', to: path.resolve(__dirname, 'dist') },
+      { from: 'CONTRIBUTING.md', to: path.resolve(__dirname, 'dist') }
     ])
   ],
   module: {
