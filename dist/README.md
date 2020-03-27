@@ -1,6 +1,6 @@
 magensa-bluetooth
 ==============
-[![npm version](https://img.shields.io/npm/v/magensa-bluetooth.svg?style=for-the-badge)](https://www.npmjs.org/package/magensa-bluetooth)  
+[![npm version](https://img.shields.io/npm/v/magensa-bluetooth.svg?style=for-the-badge)](https://www.npmjs.org/package/magensa-bluetooth "magensa-bluetooth npm.js")  
 Interface between [MagTek®](https://www.magtek.com) Bluetooth devices, and Chromium based browsers.  
 
 
@@ -465,4 +465,16 @@ Playground and Additional Information
 ============
 Please visit our [Playground](https://btplayground.magensa.dev) for an interactive demo.
 - The Playground also offers [detailed compatibility](https://btplayground.magensa.dev/compatibility-info) and first time pairing instructions for all compatible browsers and operating systems.  
+<br />  
 
+### Debug Event
+For added visibility during development, this library has a debug event emitter (```deviceLog```) that will log verbose details for all device interactions.    
+This can be especially useful when a bad command is sent - or to see the behavior when a device begins to refuse commands.   
+If you wish to subscribe to the event, you may do so:  
+```javascript
+const debugLogger = logInfo => console.log(logInfo.detail);
+
+window.addEventListener('deviceLog', debugLogger, { passive: true});
+//Be sure to remove it when unmounting to avoid memory leaks:
+window.removeEventListener('deviceLog', debugLogger, { passive: true});
+```
