@@ -479,5 +479,5 @@ window.addEventListener('deviceLog', debugLogger, { passive: true});
 window.removeEventListener('deviceLog', debugLogger, { passive: true});
 ```  
 
-MagTek® is a registered trademark of MagTek, Inc.
+MagTek® is a registered trademark of MagTek, Inc.  
 Magensa™ is a trademark of MagTek, Inc.
