@@ -477,4 +477,7 @@ const debugLogger = logInfo => console.log(logInfo.detail);
 window.addEventListener('deviceLog', debugLogger, { passive: true});
 //Be sure to remove it when unmounting to avoid memory leaks:
 window.removeEventListener('deviceLog', debugLogger, { passive: true});
-```
+```  
+
+MagTek® is a registered trademark of MagTek, Inc.
+Magensa™ is a trademark of MagTek, Inc.
