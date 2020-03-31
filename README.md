@@ -465,6 +465,7 @@ Playground and Additional Information
 ============
 Please visit our [Playground](https://btplayground.magensa.dev) for an interactive demo.
 - The Playground also offers [detailed compatibility](https://btplayground.magensa.dev/compatibility-info) information, as well as first time pairing instructions for all compatible browsers and operating systems.  
+- The Playground [source code](https://github.com/Magensa/MagensaBluetoothPlayground) is also available as an example implementation.
 <br />  
 
 ### Debug Event
