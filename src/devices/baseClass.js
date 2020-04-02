@@ -124,27 +124,30 @@ class DeviceBase extends ErrorHandler {
 
     connectAndCache = optionalIndex => new Promise( (resolve, reject) => {
 
-        let tryToConnect = tryCount => (tryCount < 4) ? 
+        let tryToConnect = tryCount => new Promise( (innerResolve, innerReject) => (tryCount < 4) ? 
             this.connect()
                 .then( () => this.cacheCardServiceBase(optionalIndex) )
-                .then( cacheServiceResp => resolve( cacheServiceResp )
+                .then( cacheServiceResp => innerResolve( cacheServiceResp )
                 ).catch( err => {
                     if (err.code === this.apiNetworkErr.code && err.name === this.apiNetworkErr.name) {
                         return setTimeout( () => {
                             this.logDeviceState(`[ERROR]: Error caching GATT Service - Clearing cache and trying again. || ${new Date()}`);
                             this.clearGattCache();
-                            return tryToConnect( tryCount + 1 );
+                            return innerResolve( tryToConnect( tryCount + 1 ) );
                         }, 500)
                     }
                     else {
                         this.logDeviceState(`[ERROR]: Failed to cache GATT Service || ${new Date()}`);
-                        return reject( err )
+                        return innerReject( err )
                     }
                 })
             :
-            reject( this.buildDeviceErr(getServiceFail))
+            innerReject( this.buildDeviceErr(getServiceFail) )
+        );
 
-            tryToConnect(0);
+        tryToConnect(0).then(
+            cacheServiceResp => resolve( cacheServiceResp)
+        ).catch(err => reject(err));
     });
 
     cancelAndDisconnect = () => this.cancelTransaction().then( () => this.device.gatt.disconnect() );
@@ -167,7 +170,7 @@ class DeviceBase extends ErrorHandler {
         this.gattServer = null;
         this.cardService = null;
 
-        this.logDeviceState(`[Disconnected]: Disconnect event. Returning event to user, removing listener || ${new Date()}`);
+        this.logDeviceState(`[Disconnected]: Disconnect event. Returning event to user, removing device listener || ${new Date()}`);
 
         this.disconnectCallback(event);
         this.device.removeEventListener('gattserverdisconnected', this.disconnectHandler);

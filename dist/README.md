@@ -464,7 +464,8 @@ All errors extend JavaScript's [Error](https://developer.mozilla.org/en-US/docs/
 Playground and Additional Information
 ============
 Please visit our [Playground](https://btplayground.magensa.dev) for an interactive demo.
-- The Playground also offers [detailed compatibility](https://btplayground.magensa.dev/compatibility-info) and first time pairing instructions for all compatible browsers and operating systems.  
+- The Playground also offers [detailed compatibility](https://btplayground.magensa.dev/compatibility-info) information, as well as first time pairing instructions for all compatible browsers and operating systems.  
+- The Playground [source code](https://github.com/Magensa/MagensaBluetoothPlayground) is also available as an example implementation.
 <br />  
 
 ### Debug Event
@@ -477,4 +478,7 @@ const debugLogger = logInfo => console.log(logInfo.detail);
 window.addEventListener('deviceLog', debugLogger, { passive: true});
 //Be sure to remove it when unmounting to avoid memory leaks:
 window.removeEventListener('deviceLog', debugLogger, { passive: true});
-```
+```  
+
+MagTek® is a registered trademark of MagTek, Inc.  
+Magensa™ is a trademark of MagTek, Inc.

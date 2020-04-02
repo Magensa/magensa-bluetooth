@@ -174,9 +174,7 @@ class Scra extends ScraEmvParser {
                 this.logDeviceState('==Batch Data Message==');
                 return this.returnToUser(this.transactionCallback)(this.parseEmvData( builtNotification, false ));
             default:
-                this.logDeviceState("*************** Not documented ***************");
-                this.logDeviceState(`notification ID: ${notificationId}`);
-                this.logDeviceState(builtNotification);
+                this.logDeviceState(`Undocumented Notification ID: ${notificationId}`, builtNotification);
                 this.logDeviceState( this.convertArrayToHexString( builtNotification ) );
         }
     }
@@ -194,7 +192,7 @@ class Scra extends ScraEmvParser {
                 (commandResp.code !== 918) ? reject(this.buildDeviceErr(commandResp)) :
                     this.setDeviceDateTime()
                     .then( () => this.delayPromise(500) )
-                    .then( () => this.startTransaction(emvOptions) )
+                    .then( () => resolve( this.startTransaction(emvOptions) ) )
         }).catch(err => reject( this.buildDeviceErr(err)) )
     ); 
 
@@ -253,19 +251,16 @@ class Scra extends ScraEmvParser {
             return reject( this.buildDeviceErr(commandNotSent))
         }
         else {
+            this.logDeviceState(`Sending command: ${this.convertArrayToHexString(writeCommand)}`);
             this.commandSent = true;
 
-            this.logDeviceState("Sending the command below to device:");
-            this.logDeviceState(this.convertArrayToHexString(writeCommand));
-
             return this.commandCharacteristic.writeValue(Uint8Array.from(writeCommand))
-            .then( () => (this.commandRespAvailable || this.waitForDeviceResponse(10)) )
+            .then( () => (this.commandRespAvailable) ? Promise.resolve( true ) : this.waitForDeviceResponse(15))
             .then( waitResp => {
                 this.commandRespAvailable = false;
                 
-                return (!waitResp) ? reject( this.buildDeviceErr(responseNotReceived))
-                :
-                this.readCommandValue()
+                return (!waitResp) ? 
+                    reject( this.buildDeviceErr(responseNotReceived)) : this.readCommandValue()
             }).then(response => resolve(response)
             ).catch(err => reject( this.buildDeviceErr(err) ));
         }
