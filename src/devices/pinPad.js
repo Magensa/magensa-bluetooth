@@ -6,7 +6,7 @@ import {
     commandNotSent,
     deviceNotOpen
 } from '../errorHandler/errConstants';
-import { closeSuccess, successCode, noSessionToClear } from '../utils/constants';
+import { openSuccess, closeSuccess, successCode, noSessionToClear } from '../utils/constants';
 
 class PinPad extends PinStatusParser {
     constructor(device, callBacks) {
@@ -85,7 +85,7 @@ class PinPad extends PinStatusParser {
         this.initialNotification = [0x00];
     }
 
-    getCardServiceBase = () => new Promise( (parentResolve, parentReject) => (!this.device) ?
+    getCardService = () => new Promise( (parentResolve, parentReject) => (!this.device) ?
         parentReject(
             this.buildDeviceErr(deviceNotFound)
         )
@@ -144,9 +144,13 @@ class PinPad extends PinStatusParser {
 
                     return resolve()
                 })
-            ).then(() => this.delayPromise(400) ).then(() => parentResolve()
-            ).catch(err => parentReject( err ))
-        );
+            ).then(() => this.delayPromise(400) ).then(() => 
+                parentResolve({ 
+                    code: successCode,
+                    message: openSuccess
+                })
+            ).catch(err => parentReject( this.buildDeviceErr(err) ))
+    );
     
     dataWatcher = event => {
         let dataEvent = event.target.value.getUint8(0);
@@ -199,6 +203,9 @@ class PinPad extends PinStatusParser {
                     return resolve( this.formatKsnAndSn(commandResp) )
                 case this.reportIds.requestSn:
                     return resolve ( this.formatSerialNumber(commandResp) )
+                default:
+                    console.log("[!] No Case for this data: ");
+                    console.log(this.convertArrayToHexString(commandResp));
             };
         }
         else

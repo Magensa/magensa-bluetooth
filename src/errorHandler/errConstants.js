@@ -1,3 +1,8 @@
+const notFoundObj = Object.freeze({
+    errorCode: 8,
+    errorName: "NotFoundError"
+});
+
 const deviceNotFound = Object.freeze({
     code: 1002,
     name: 'DeviceNotFound',
@@ -61,5 +66,6 @@ export {
     gattServerNotConnected,
     readFailed,
     commandNotSentFromHost,
-    getServiceFail
+    getServiceFail,
+    notFoundObj
 }

@@ -11,11 +11,29 @@ const noSessionToClear = Object.freeze({
     message: "Success, there was no session to clear"
 });
 
+const tDynamo = "tDynamo";
+const eDynamo = "eDynamo";
+const dynaProGo = "dynaProGo";
+const dpMini = "DynaPro Mini";
+
+const eDynamoPattern = new RegExp(/^eDynamo-/);
+const tDynamoPattern = new RegExp(/^tDynamo-/);
+const dpMiniPattern = new RegExp(/^DPMini/);
+const dpGoPattern = new RegExp(/^DPG/);
+
 export {
     openSuccess,
     successCode,
     swipeListening,
     deviceNotIdle,
     closeSuccess,
-    noSessionToClear
+    noSessionToClear,
+    eDynamoPattern,
+    tDynamoPattern,
+    dpMiniPattern,
+    dpGoPattern,
+    tDynamo,
+    eDynamo,
+    dynaProGo,
+    dpMini
 }

@@ -1,24 +1,44 @@
-import DpMini from './devices/dynaProMini';
-import EDynamo from './devices/eDynamo';
-import TDynamo from './devices/tDynamo';
-import DeviceInterface from './devices/deviceInterface';
 import ApiError from './errorHandler/apiError';
 import { allDeviceConfig, findDeviceByDeviceName } from './configurations';
+import { buildDeviceObject } from './utils/instanciateDevice';
+import {
+    eDynamoPattern,
+    tDynamoPattern,
+    dpMiniPattern,
+    dpGoPattern,
+    tDynamo,
+    eDynamo,
+    dynaProGo,
+    dpMini
+} from './utils/constants';
+import { notFoundObj } from './errorHandler/errConstants';
 
-const findDeviceByProductName = selectedDevice => 
-    new Promise( (resolve, reject) => selectedDevice.gatt.connect()
-        .then(server =>
-            server.getPrimaryService('device_information')
-        ).then(service => service.getCharacteristic('model_number_string')
-        ).then(characteristic => characteristic.readValue()
-        ).then(value => {
-            let modelNameString = new TextDecoder('utf-8').decode(value);
-            return resolve([
-                selectedDevice, 
-                modelNameString
-            ]);
-        }).catch(err => reject(err) )
-);
+const findDeviceByProductName = selectedDevice => new Promise( (resolve, reject) => {
+    let modelNameString;
+
+    return selectedDevice.gatt.connect()
+    .then(server => server.getPrimaryService('device_information')
+    ).then(service => service.getCharacteristic('model_number_string')
+    ).then(characteristic => characteristic.readValue()
+    ).then(value => {
+        modelNameString = new TextDecoder('utf-8').decode(value).trim();
+        return selectedDevice.gatt.disconnect();
+    }).then( () => resolve( modelNameString )
+    ).catch(err => (
+            err.code === notFoundObj.errorCode && 
+            err.name === notFoundObj.errorName && 
+            err.message.includes("0000180a-0000-1000-8000-00805f9b34fb")
+        ) ? (!selectedDevice.gatt.connected) ? resolve( dynaProGo ) 
+            : Promise.resolve( selectedDevice.gatt.disconnect() ).then(() => resolve( dynaProGo ))
+        : reject(err)
+    );
+});
+
+const inspectDeviceName = deviceName => (tDynamoPattern.test(deviceName)) ? tDynamo : 
+    (eDynamoPattern.test(deviceName)) ? eDynamo : 
+        (dpGoPattern.test(deviceName)) ? dynaProGo : 
+            (dpMiniPattern.test(deviceName)) ? dpMini : "";
+
 
 const defaultCallback = dataObj => {
     console.warn("Callback not provided to 'scanForDevices' function. Please provide at least one callback function to this method");
@@ -36,10 +56,8 @@ export const scanForDevices = (callBacks, deviceName) => new Promise( (resolve, 
         return reject("When providing multiple callbacks in an object, 'transactionCallback' must be provided");
     }
 
-    let isCallbackFunction = (typeof callBacks === 'function');
-
     const propAssignment = propName => (callBacks[propName]) ? callBacks[propName] : 
-        (isCallbackFunction) ? callBacks : callBacks.transactionCallback;
+        (typeof callBacks === 'function') ? callBacks : callBacks.transactionCallback;
 
     callBacks.errorCallback = (callBacks.errorCallback || defaultErrCallback);
     callBacks.transactionStatusCallback = ( callBacks.transactionStatusCallback || propAssignment('transactionStatusCallback') );
@@ -47,35 +65,20 @@ export const scanForDevices = (callBacks, deviceName) => new Promise( (resolve, 
     callBacks.displayCallback = ( callBacks.displayCallback || propAssignment('displayCallback') );
     callBacks.disconnectHandler = (callBacks.disconnectHandler || propAssignment('transactionCallback') );
 
-    let options = (deviceName) ? findDeviceByDeviceName(deviceName) : allDeviceConfig;
+    const options = (deviceName) ? findDeviceByDeviceName(deviceName) : allDeviceConfig;
     
     return navigator.bluetooth.requestDevice( options )
-    .then(device => findDeviceByProductName(device)
-    ).then(deviceInfo => {
-        let deviceType = deviceInfo[1].trim().toLowerCase();
-        deviceInfo[0].deviceType = deviceType;
+        .then(device => {
+            const deviceTypeName = null;// = inspectDeviceName( device.name );
 
-        let selectedDevice = (deviceType.includes('edynamo')) ? new EDynamo(deviceInfo[0], callBacks) : 
-                (deviceType.includes('tdynamo')) ? new TDynamo(deviceInfo[0], callBacks) : 
-                (deviceType.includes('dynapro')) ? new DpMini(deviceInfo[0], callBacks) : 
-                null;
-
-        return (selectedDevice) ? Promise.resolve([ selectedDevice, deviceInfo[1] ]) 
-            : reject("Selected device is not supported")
-    }).then( selectedDeviceInfo => {
-        let deviceObj = selectedDeviceInfo[0].device;
-        let selectedInterface = new DeviceInterface(selectedDeviceInfo[0]);
-
-        let returnDeviceObj = {
-            id: deviceObj.id,
-            name: deviceObj.name,
-            deviceType: selectedDeviceInfo[1],
-            deviceInterface: selectedInterface
-        };
-        
-        return resolve( returnDeviceObj );
-    }).catch(err => (typeof err === "object") ? 
-        reject(new ApiError(err) ) : 
-        reject("Selected device is not supported")
-    )
+            return (deviceTypeName) ? resolve( buildDeviceObject(device, callBacks, deviceTypeName) ) :
+                findDeviceByProductName(device).then( 
+                    deviceTypeString => (!deviceTypeString) ? 
+                        reject("Selected device is not supported") 
+                        : resolve( buildDeviceObject(device, callBacks, deviceTypeString) )
+                ).catch(err => reject(err));
+        }).catch(err => (typeof err === "object") ? 
+            reject( new ApiError(err) ) : 
+            reject("Selected device is not supported")
+        )
 });

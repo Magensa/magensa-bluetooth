@@ -2,7 +2,7 @@ import PinPad from './pinPad';
 import { openSuccess, successCode, deviceNotIdle } from '../utils/constants';
 import { responseNotReceived, deviceNotFound } from '../errorHandler/errConstants';
 
-class DpMini extends PinPad {
+class DynaProGo extends PinPad {
     constructor(device, callBacks) {
         super(device, callBacks);
 
@@ -103,4 +103,4 @@ class DpMini extends PinPad {
     //#endregion
 }
 
-export default DpMini;
+export default DynaProGo;

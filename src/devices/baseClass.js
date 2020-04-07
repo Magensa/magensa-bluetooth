@@ -2,7 +2,8 @@ import ErrorHandler from '../errorHandler';
 import { 
     deviceNotFound, 
     gattServerNotConnected,
-    getServiceFail
+    getServiceFail,
+    notFoundObj
 } from '../errorHandler/errConstants';
 
 class DeviceBase extends ErrorHandler {
@@ -19,11 +20,6 @@ class DeviceBase extends ErrorHandler {
             "0508e6f8-ad82-898f-f843-e3410cb60103", 
             "0508e6f8-ad82-898f-f843-e3410cb60101"
         ];
-
-        this.serviceNotFound = Object.freeze({
-            errorCode: 8,
-            errorName: "NotFoundError"
-        });
 
         this.cardTypesObj = Object.freeze({
             'msr': 0x01,
@@ -58,7 +54,7 @@ class DeviceBase extends ErrorHandler {
 
     cardTypes = cardTypeStr => (cardTypeStr !== 'all') ? 
         (this.cardTypesObj[ cardTypeStr ] || 0x03) 
-        : (this.device.deviceType.toLowerCase().includes('tdynamo')) ? 
+        : (this.device.deviceType.toLowerCase().includes('tdynamo') || this.device.deviceType === "dynaProGo") ? 
             0x07 : 0x03;
         
 
@@ -105,7 +101,7 @@ class DeviceBase extends ErrorHandler {
             this.device.addEventListener('gattserverdisconnected', this.disconnectHandler);
             return resolve( service );
         }).catch( err => {
-            if (err.code === this.serviceNotFound.errorCode && err.name === this.serviceNotFound.errorName) {
+            if (err.code === notFoundObj.errorCode && err.name === notFoundObj.errorName) {
                 if (typeof this.deviceUUIDs[serviceIndex + 1] !== "undefined") {
 
                     this.logDeviceState(
