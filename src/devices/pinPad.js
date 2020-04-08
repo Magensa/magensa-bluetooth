@@ -176,7 +176,7 @@ class PinPad extends PinStatusParser {
             .catch( err => {
                 if (err.code === this.gattBusy.code && err.message === this.gattBusy.message) {
                     this.logDeviceState(`[INFO]: Read failed due to device being busy. Attempting read again || ${new Date()}`)
-                    return this.readCommandResp()
+                    return resolve( this.readCommandResp() )
                 }
                 else return reject(this.buildDeviceErr(err))
             }));
@@ -224,7 +224,7 @@ class PinPad extends PinStatusParser {
     handleBigBlockData = bigBlockData => {
         switch(bigBlockData[2]) {
             case 0x00:
-               this.handleBigBlockBegin(bigBlockData);
+               this.handleBigBlockBegin( bigBlockData );
                break;
             case 0x63:
                 this.maxBlockId = Math.max(...Object.keys(this.rawData)) + 1;

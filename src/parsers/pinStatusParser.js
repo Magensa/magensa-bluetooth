@@ -199,20 +199,28 @@ class PinStatusParser extends PinUtils {
 }
 
     handleBigBlockBegin = bigBlockData => {
-        let isArqc = (bigBlockData[1] === 0xA4);
-        let isBatchData = (bigBlockData[1] === 0xAB);
+        switch(bigBlockData[1]) {
+            case 0xA4:
+                this.arqcArriving = true;
+                this.arqcTotalLen = this.readTwoByteLength([ bigBlockData[5], bigBlockData[4] ]);
+                break;
+            case 0xAB:
+                this.batchDataArriving = true;
+                this.batchTotalLen = this.readTwoByteLength([ bigBlockData[5], bigBlockData[4] ]);
+                break;
+            case 0x18:
+            case 0x20:
+            case 0x21:
+                //Debug data. Ignore.
+                break;
+            default:
+                this.transactionStatusCallback({
+                    bufferType: (this.bufferTypes[ bigBlockData[1] ] || "Buffer type not documented")
+                });
+                break;
+        }
 
-        this.arqcArriving = isArqc;
-        this.batchDataArriving = isBatchData;
-
-        if (isArqc)
-            this.arqcTotalLen = this.readTwoByteLength([ bigBlockData[5], bigBlockData[4] ]);
-        else 
-            this.batchTotalLen = this.readTwoByteLength([ bigBlockData[5], bigBlockData[4] ]);
-
-        return this.transactionStatusCallback({
-            bufferType: (this.bufferTypes[ bigBlockData[1] ] || "Buffer type not documented")
-        });
+        return;
     }
 
     handleArqcBigBlockFinish = () => {
