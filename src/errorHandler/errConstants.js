@@ -3,6 +3,11 @@ const notFoundObj = Object.freeze({
     errorName: "NotFoundError"
 });
 
+const apiNetworkErr = Object.freeze({
+    code: 19,
+    name: 'NetworkError'
+});
+
 const deviceNotFound = Object.freeze({
     code: 1002,
     name: 'DeviceNotFound',
@@ -67,5 +72,6 @@ export {
     readFailed,
     commandNotSentFromHost,
     getServiceFail,
-    notFoundObj
+    notFoundObj,
+    apiNetworkErr
 }

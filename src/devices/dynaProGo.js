@@ -14,8 +14,7 @@ class DynaProGo extends PinPad {
     }
 
     sendCommandWithResp = writeCommand => new Promise( (resolve, reject) => {
-        this.logDeviceState(`[INFO]: Below command sent to device || ${new Date()}`);
-        this.logDeviceState(writeCommand);
+        this.logDeviceState(`[INFO]: Command sent to device || ${new Date()}`, writeCommand);
         
         this.sendPinCommand(writeCommand)
         .then( () => (this.commandRespAvailable || this.waitForDeviceResponse(16)) )

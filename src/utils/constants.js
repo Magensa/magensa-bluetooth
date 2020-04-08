@@ -16,6 +16,23 @@ const eDynamo = "eDynamo";
 const dynaProGo = "dynaProGo";
 const dpMini = "DynaPro Mini";
 
+const cardTypeAll = Object.freeze({
+    [eDynamo]: 0x03,
+    [tDynamo]: 0x07,
+    [dpMini]: 0x03,
+    [dynaProGo]: 0x07
+});
+
+const cardTypesObj = Object.freeze({
+    'msr': 0x01,
+    'chip': 0x02,
+    'chipmsr': 0x03,
+    'contactless': 0x04,
+    'contactlessmsr': 0x05,
+    'contactlesschip':0x06,
+    'all': 0x07
+});
+
 const eDynamoPattern = new RegExp(/^eDynamo-/);
 const tDynamoPattern = new RegExp(/^tDynamo-/);
 const dpMiniPattern = new RegExp(/^DPMini/);
@@ -35,5 +52,7 @@ export {
     tDynamo,
     eDynamo,
     dynaProGo,
-    dpMini
+    dpMini,
+    cardTypeAll,
+    cardTypesObj
 }

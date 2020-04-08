@@ -3,8 +3,10 @@ import {
     deviceNotFound, 
     gattServerNotConnected,
     getServiceFail,
-    notFoundObj
+    notFoundObj,
+    apiNetworkErr
 } from '../errorHandler/errConstants';
+import { cardTypeAll, cardTypesObj } from '../utils/constants';
 
 class DeviceBase extends ErrorHandler {
     constructor(device, callbacks) {
@@ -21,16 +23,6 @@ class DeviceBase extends ErrorHandler {
             "0508e6f8-ad82-898f-f843-e3410cb60101"
         ];
 
-        this.cardTypesObj = Object.freeze({
-            'msr': 0x01,
-            'chip': 0x02,
-            'chipmsr': 0x03,
-            'contactless': 0x04,
-            'contactlessmsr': 0x05,
-            'contactlesschip':0x06,
-            'all': 0x07
-        });
-
         this.statusVerbosity = Object.freeze({
             "minimum": 0x00,
             'medium': 0x01,
@@ -44,18 +36,11 @@ class DeviceBase extends ErrorHandler {
             'default': [0x00, 0x00] 
         });
 
-        this.apiNetworkErr = {
-            code: 19,
-            name: 'NetworkError'
-        };
-
         this.commandRespAvailable = false;
     }
 
     cardTypes = cardTypeStr => (cardTypeStr !== 'all') ? 
-        (this.cardTypesObj[ cardTypeStr ] || 0x03) 
-        : (this.device.deviceType.toLowerCase().includes('tdynamo') || this.device.deviceType === "dynaProGo") ? 
-            0x07 : 0x03;
+        (cardTypesObj[ cardTypeStr ] || 0x03) : (cardTypeAll[ this.device.deviceType ] || 0x03);
         
 
     connect = () => new Promise( (resolve, reject) => {
@@ -73,10 +58,8 @@ class DeviceBase extends ErrorHandler {
             reject( this.buildDeviceErr(deviceNotFound) )
     });
 
-    disconnect = () => new Promise( resolve => 
-        (!this.device.gatt.connected) ? resolve() 
-        : 
-        resolve(this.device.gatt.disconnect())
+    disconnect = () => new Promise( resolve => (!this.device.gatt.connected) ? 
+        resolve() : resolve( this.device.gatt.disconnect() )
     );
 
     cacheCardServiceBase = serviceIndex => new Promise( (resolve, reject) => {
@@ -84,7 +67,7 @@ class DeviceBase extends ErrorHandler {
         this.logDeviceState(`[GATT]: Cache Card Service Request || ${new Date()}`);
 
         return (!this.gattServer) ? 
-            reject( this.buildDeviceErr(gattServerNotConnected))
+            reject( this.buildDeviceErr(gattServerNotConnected) )
             :
             this.findPrimaryService(serviceIndex)
             .then(service => resolve(service))
@@ -102,19 +85,20 @@ class DeviceBase extends ErrorHandler {
             return resolve( service );
         }).catch( err => {
             if (err.code === notFoundObj.errorCode && err.name === notFoundObj.errorName) {
-                if (typeof this.deviceUUIDs[serviceIndex + 1] !== "undefined") {
+                if (typeof( this.deviceUUIDs[serviceIndex + 1] !== "undefined" )) {
 
                     this.logDeviceState(
                         `[ERROR]: Failed to connect. UUID: ${this.deviceUUIDs[ serviceIndex ]} is not valid for this device. Trying again with UUID: ${this.deviceUUIDs[ serviceIndex + 1 ]} || ${new Date()}`
                     );
 
-                    return this.findPrimaryService(serviceIndex + 1);
+                    return resolve( this.findPrimaryService(serviceIndex + 1) );
                 }
             }
-
-            this.logDeviceState(`[ERROR]: Failed to retrieve Card Service - UUID: ${this.deviceUUIDs[ serviceIndex ]} is not valid for this device. || ${new Date()}`);
+            else {
+                this.logDeviceState(`[ERROR]: Failed to retrieve Card Service - UUID: ${this.deviceUUIDs[ serviceIndex ]} is not valid for this device. || ${new Date()}`);
             
-            reject( err );
+                return reject( err );
+            }
         })
     );
 
@@ -125,7 +109,7 @@ class DeviceBase extends ErrorHandler {
                 .then( () => this.cacheCardServiceBase(optionalIndex) )
                 .then( cacheServiceResp => innerResolve( cacheServiceResp )
                 ).catch( err => {
-                    if (err.code === this.apiNetworkErr.code && err.name === this.apiNetworkErr.name) {
+                    if (err.code === apiNetworkErr.code && err.name === apiNetworkErr.name) {
                         return setTimeout( () => {
                             this.logDeviceState(`[ERROR]: Error caching GATT Service - Clearing cache and trying again. || ${new Date()}`);
                             this.clearGattCache();
@@ -141,7 +125,7 @@ class DeviceBase extends ErrorHandler {
             innerReject( this.buildDeviceErr(getServiceFail) )
         );
 
-        tryToConnect(0).then(
+        return tryToConnect(0).then(
             cacheServiceResp => resolve( cacheServiceResp)
         ).catch(err => reject(err));
     });

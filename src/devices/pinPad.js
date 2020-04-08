@@ -97,16 +97,17 @@ class PinPad extends PinStatusParser {
                 return service.getCharacteristic(this.deviceToHostLen) 
             }).then( characteristic => {
                 this.logDeviceState(`[GATT]: Begin notifications on AppDataToHostLength Characteristic || ${new Date()}`);
-                this.cardDataListener = characteristic;
                 
-                return this.cardDataListener.startNotifications()
+                return characteristic.startNotifications()
             }).then( characteristic => 
                 new Promise(resolve => {
                     this.logDeviceState(`[GATT]: Add listener to notifications || ${new Date()}`);
 
-                    this.cardDataListener.removeEventListener('characteristicvaluechanged', this.dataWatcher);
-                    this.cardDataListener.addEventListener('characteristicvaluechanged', this.dataWatcher);
+                    characteristic.removeEventListener('characteristicvaluechanged', this.dataWatcher);
+                    characteristic.addEventListener('characteristicvaluechanged', this.dataWatcher);
                     
+                    this.cardDataListener = characteristic;
+
                     return resolve()
                 })
             ).then( () => {
@@ -140,7 +141,7 @@ class PinPad extends PinStatusParser {
                         window.addEventListener('beforeunload', this.onDestroyHandler);
                     }
 
-                    this.logDeviceState(`[GATT]: Successfully cached all GATT services and characteristics.  Returning successful open to user || ${new Date()}`);
+                    this.logDeviceState(`[GATT]: Successfully cached all GATT services and characteristics. Returning successful pair to user || ${new Date()}`);
 
                     return resolve()
                 })
@@ -161,8 +162,9 @@ class PinPad extends PinStatusParser {
             this.commandRespAvailable = true;
             return;
         }
-
-        return this.readCommandResp();
+        else {
+            return this.readCommandResp();
+        }
     }
 
     readCommandResp = () => new Promise( (resolve, reject) => (!this.receiveDataChar) ?
@@ -202,7 +204,7 @@ class PinPad extends PinStatusParser {
                 case this.reportIds.getKsn:
                     return resolve( this.formatKsnAndSn(commandResp) )
                 case this.reportIds.requestSn:
-                    return resolve ( this.formatSerialNumber(commandResp) )
+                    return resolve( this.formatSerialNumber(commandResp) )
                 default:
                     console.log("[!] No Case for this data: ");
                     console.log(this.convertArrayToHexString(commandResp));
@@ -213,6 +215,7 @@ class PinPad extends PinStatusParser {
     });
 
     handleEmvCompletion = commandResp => {
+        console.log("[!] EMV Completion: ", commandResp);
         return this.transactionStatusCallback(
             this.parseEmvCompletion(commandResp)
         )
