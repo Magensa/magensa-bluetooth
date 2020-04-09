@@ -13,7 +13,8 @@ class DeviceInterface {
         closeDevice,
         getDeviceInfo,
         requestCardSwipe,
-        isDeviceConnected
+        isDeviceConnected,
+        disconnect
     }) {
         this.openDevice = getCardService;
         this.startTransaction = startTransaction;
@@ -24,6 +25,7 @@ class DeviceInterface {
         this.deviceInfo = getDeviceInfo;
         this.requestCardSwipe = requestCardSwipe;
         this.isDeviceOpen = isDeviceConnected;
+        this.forceDisconnect = disconnect
     }
 };
 

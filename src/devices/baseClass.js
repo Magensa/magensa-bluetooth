@@ -6,7 +6,7 @@ import {
     notFoundObj,
     apiNetworkErr
 } from '../errorHandler/errConstants';
-import { cardTypeAll, cardTypesObj } from '../utils/constants';
+import { cardTypeAll, cardTypesObj, successfulClose } from '../utils/constants';
 
 class DeviceBase extends ErrorHandler {
     constructor(device, callbacks) {
@@ -58,9 +58,15 @@ class DeviceBase extends ErrorHandler {
             reject( this.buildDeviceErr(deviceNotFound) )
     });
 
-    disconnect = () => new Promise( resolve => (!this.device.gatt.connected) ? 
-        resolve() : resolve( this.device.gatt.disconnect() )
-    );
+    disconnect = () => new Promise( resolve =>  {
+        if (!this.device.gatt.connected) {
+            return resolve( successfulClose )
+        }
+        else {
+            this.device.gatt.disconnect()
+            return resolve( successfulClose )
+        }
+    });
 
     cacheCardServiceBase = serviceIndex => new Promise( (resolve, reject) => {
         serviceIndex = serviceIndex || 0;
@@ -130,10 +136,8 @@ class DeviceBase extends ErrorHandler {
         ).catch(err => reject(err));
     });
 
-    cancelAndDisconnect = () => this.cancelTransaction().then( () => this.device.gatt.disconnect() );
-
     onDestroyHandler = () => (this.device) ? 
-        (this.device.gatt.connected) ? this.cancelAndDisconnect() : null
+        (this.device.gatt.connected) ? this.device.gatt.disconnect() : null
     : null;
 
     waitForDeviceResponse = maxTries => new Promise( resolve => {

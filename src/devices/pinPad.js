@@ -6,7 +6,7 @@ import {
     commandNotSent,
     deviceNotOpen
 } from '../errorHandler/errConstants';
-import { openSuccess, closeSuccess, successCode, noSessionToClear } from '../utils/constants';
+import { openSuccess, closeSuccess, successCode, noSessionToClear, gattBusy, successfulClose } from '../utils/constants';
 
 class PinPad extends PinStatusParser {
     constructor(device, callBacks) {
@@ -29,11 +29,6 @@ class PinPad extends PinStatusParser {
         this.transactionHasStarted = false;
         this.dataGathered = false;
         this.startTransactionCommand = null;
-
-        this.gattBusy = {
-            code: 19, 
-            message: "GATT operation already in progress."
-        };
 
         this.transactionTypes = Object.freeze({
             'purchase': 0x00,
@@ -97,45 +92,36 @@ class PinPad extends PinStatusParser {
                 return service.getCharacteristic(this.deviceToHostLen) 
             }).then( characteristic => {
                 this.logDeviceState(`[GATT]: Begin notifications on AppDataToHostLength Characteristic || ${new Date()}`);
-                
+                console.log(characteristic);
                 return characteristic.startNotifications()
-            }).then( characteristic => 
-                new Promise(resolve => {
-                    this.logDeviceState(`[GATT]: Add listener to notifications || ${new Date()}`);
+            }).then( characteristic => {
+                this.logDeviceState(`[GATT]: Add listener to notifications || ${new Date()}`);
 
-                    characteristic.removeEventListener('characteristicvaluechanged', this.dataWatcher);
-                    characteristic.addEventListener('characteristicvaluechanged', this.dataWatcher);
-                    
-                    this.cardDataListener = characteristic;
-
-                    return resolve()
-                })
-            ).then( () => {
+                characteristic.removeEventListener('characteristicvaluechanged', this.dataWatcher);
+                characteristic.addEventListener('characteristicvaluechanged', this.dataWatcher);
+                console.log(characteristic);
+                this.cardDataListener = characteristic;
                 this.logDeviceState(`[GATT]: Cache AppDataToHost Characteristic || ${new Date()}`);
 
-                return this.cardService.getCharacteristic(this.deviceToHostData)
-            }).then( characteristic => 
-                new Promise( resolve => {
+                return this.cardService.getCharacteristic(this.deviceToHostData);
+            }).then( characteristic => {
                     this.receiveDataChar = characteristic;
-                    return resolve();
-            })
-            ).then( () => {
-                this.logDeviceState(`[GATT]: Cache AppDataFromHostLength Characteristic || ${new Date()}`);
-                return this.cardService.getCharacteristic(this.deviceFromHostLen)
-            }).then( characteristic => 
-                new Promise( resolve => {
+                    this.logDeviceState(`[GATT]: Cache AppDataFromHostLength Characteristic || ${new Date()}`);
+
+                    return this.cardService.getCharacteristic(this.deviceFromHostLen)
+            }).then( characteristic => {
                     this.sendLenToDevice = characteristic;
-                    return resolve();
-                })
-            ).then( () => {
-                this.logDeviceState(`[GATT]: Cache AppDataFromHost Characteristic || ${new Date()}`);
-                return this.cardService.getCharacteristic(this.deviceFromHostData)
-            }).then( characteristic => 
-                new Promise( resolve => {
+                    this.logDeviceState(`[GATT]: Cache AppDataFromHost Characteristic || ${new Date()}`);
+
+                    return this.cardService.getCharacteristic(this.deviceFromHostData)
+            }).then( characteristic => {
                     this.commandCharacteristic = characteristic;
 
-                    //If this library is being used in a web application
-                    //Make sure the device cancels any active command, and disconnects properly
+                    /*
+                        If this library is being used in a web application
+                        Make sure the device cancels any active command, and disconnects properly
+                    */
+
                     if (window) {
                         window.removeEventListener('beforeunload', this.onDestroyHandler);
                         window.addEventListener('beforeunload', this.onDestroyHandler);
@@ -143,14 +129,11 @@ class PinPad extends PinStatusParser {
 
                     this.logDeviceState(`[GATT]: Successfully cached all GATT services and characteristics. Returning successful pair to user || ${new Date()}`);
 
-                    return resolve()
-                })
-            ).then(() => this.delayPromise(400) ).then(() => 
-                parentResolve({ 
+                    return this.delayPromise(400)
+            }).then(() => parentResolve({ 
                     code: successCode,
                     message: openSuccess
-                })
-            ).catch(err => parentReject( this.buildDeviceErr(err) ))
+            })).catch(err => parentReject( this.buildDeviceErr(err) ))
     );
     
     dataWatcher = event => {
@@ -174,7 +157,7 @@ class PinPad extends PinStatusParser {
             .then(value => this.readValueHandler(value) )
             .then(value => resolve(value))
             .catch( err => {
-                if (err.code === this.gattBusy.code && err.message === this.gattBusy.message) {
+                if (err.code === gattBusy.code && err.message === gattBusy.message) {
                     this.logDeviceState(`[INFO]: Read failed due to device being busy. Attempting read again || ${new Date()}`)
                     return resolve( this.readCommandResp() )
                 }
@@ -206,13 +189,17 @@ class PinPad extends PinStatusParser {
                 case this.reportIds.requestSn:
                     return resolve( this.formatSerialNumber(commandResp) )
                 default:
-                    console.log("[!] No Case for this data: ");
-                    console.log(this.convertArrayToHexString(commandResp));
+                    return resolve( this.handleRawData(commandResp) );
             };
         }
         else
             resolve()
     });
+
+    handleRawData = arrayData => {
+        this.logDeviceState(`[Data Resp]: There is no parser for this data, returning to caller: ${this.convertArrayToHexString(arrayData)} || ${new Date()}`);
+        return this.transactionCallback( arrayData );
+    }
 
     handleEmvCompletion = commandResp => {
         console.log("[!] EMV Completion: ", commandResp);
@@ -306,17 +293,16 @@ class PinPad extends PinStatusParser {
         this.swipeHasBegun = true;
         this.cardDataObj = {};
 
-        this.getCardServiceBase()
-            .then( () => 
-                this.sendCommandWithResp([0x01, 0x02, 0x00])
-            ).then( ackResp => {
+        return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
+            : 
+            this.sendCommandWithResp([0x01, 0x02, 0x00])
+            .then( ackResp => {
                 this.transactionStatusCallback(ackResp);
-                return Promise.resolve()
-            }).then( () => 
-                this.sendCommandWithResp(
-                    this.buildSwipeCommand( swipeOptions || {} )
+
+                return this.sendCommandWithResp(
+                    this.buildSwipeCommand( (swipeOptions || {}) )
                 )
-            ).then( resp => resolve(resp)
+            }).then( resp => resolve(resp)
             ).catch( err => reject(err))
     });
         
@@ -417,9 +403,11 @@ class PinPad extends PinStatusParser {
             .then( () => {
                 this.commandSent = true;
                 this.logDeviceState(`[AppFromHostData]: ${this.convertArrayToHexString(writeCommand)} || ${new Date()}`);
-                return this.commandCharacteristic.writeValue( Uint8Array.from(writeCommand) )
-            }).then(() => resolve())
-            .catch(err => reject(err));
+                return resolve( this.commandCharacteristic.writeValue( Uint8Array.from(writeCommand) ) )
+            }).catch(err => {
+                this.commandSent = false;
+                return reject(err)
+            });
     });
 
     cancelTransaction = () => new Promise( (resolve, reject) => (!this.commandCharacteristic) ? 
@@ -442,67 +430,54 @@ class PinPad extends PinStatusParser {
             }).catch(err => reject( this.buildDeviceErr(err) ));
     });
 
-    clearSessionAndClose = () => new Promise((outerResolve, reject) => {
-        this.logDeviceState(`[ClearSessionAndClose]: Request to close device || ${new Date()}`);
+    // clearSessionAndClose = () => new Promise((outerResolve, reject) => {
+    //     this.logDeviceState(`[ClearSessionAndClose]: Request to close device || ${new Date()}`);
 
-        return this.sendCommandWithResp([0x01, 0x02, 0x00])
-        .then( ackResp => {
-            this.transactionStatusCallback(ackResp);
-            this.logDeviceState(`[ClearSessionAndClose]: Received clear session resp. Stop GATT notifications || ${new Date()}`);
+    //     return this.sendCommandWithResp([0x01, 0x02, 0x00])
+    //     .then( ackResp => {
+    //         this.transactionStatusCallback(ackResp);
+    //         this.logDeviceState(`[ClearSessionAndClose]: Received clear session resp. Stop GATT notifications || ${new Date()}`);
 
-            return this.cardDataListener.stopNotifications()
-        }).then( () => {
-            this.cardDataListener.removeEventListener('characteristicvaluechanged', this.dataWatcher);
-            this.cardDataListener = null;
-            this.logDeviceState(`[ClearSessionAndClose]: GATT notifications stopped, removed characteristic from cache || ${new Date()}`);
+    //         return this.cardDataListener.stopNotifications()
+    //     }).then( () => {
+    //         this.cardDataListener.removeEventListener('characteristicvaluechanged', this.dataWatcher);
+    //         this.cardDataListener = null;
+    //         this.logDeviceState(`[ClearSessionAndClose]: GATT notifications stopped, removed characteristic from cache || ${new Date()}`);
 
-            return this.delayPromise(500)
-        }).then( () => {
-            this.clearGattCache();
-            this.logDeviceState(`[ClearSessionAndClose]: cleared remaining cache. Closing device || ${new Date()}`);
+    //         this.clearGattCache();
+    //         this.logDeviceState(`[ClearSessionAndClose]: cleared remaining cache. Closing device || ${new Date()}`);
 
-            return Promise.resolve();
-        }).then( () => this.disconnect() 
-        ).then( () => outerResolve() )
-        .catch( err => reject(err) );
-    })
+    //         return outerResolve( this.disconnect() )
+    //     }).catch( err => reject(err) );
+    // })
 
     closePinDevice = () => new Promise( (resolve, reject) => (!this.cardDataListener) ?
         this.disconnect().then( () => {
-            this.logDeviceState(`[CLOSE DEVICE]: Clearing JS cache || ${new Date()}`);
+            this.logDeviceState(`[Close Device]: Device Closed. Clearing JS cache || ${new Date()}`);
             this.clearGattCache();
+            
             return resolve();
         }).catch(err => reject( err ) )
         :
         this.cardDataListener.stopNotifications()
         .then( () => {
+            this.logDeviceState(`[Close Device]: GATT notifications stopped. Clearing JS cache || ${new Date()}`);
+
             this.cardDataListener.removeEventListener('characteristicvaluechanged', this.dataWatcher);
             this.cardDataListener = null;
-            this.logDeviceState(`[CLOSE DEVICE]: GATT notifications stopped, removed characteristic from cache || ${new Date()}`);
-            return this.delayPromise( 300 )
-        }).then( () => {
-            this.logDeviceState(`[CLOSE DEVICE]: Closing device || ${new Date()}`);
-            return Promise.resolve( this.disconnect() )
-        }).then( () => {
-            this.logDeviceState(`[CLOSE DEVICE]: Clearing JS cache || ${new Date()}`);
             this.clearGattCache();
-            return resolve();
+
+            return resolve( this.disconnect() )
         }).catch(err => reject( err ) )
     );
 
-    closeDevice = () => new Promise( (resolve, reject) => 
-        (!this.device.gatt.connected) ? resolve({
-            code: successCode,
-            message: closeSuccess
-        }) 
-        :
-        this.clearSession()
+    closeDevice = () => new Promise( (resolve, reject) => (!this.device.gatt.connected) ? 
+        resolve(successfulClose) 
+        : this.clearSession()
             .then( () => 
                 this.closePinDevice()
-            ).then(()=> resolve({
-                code: successCode,
-                message: closeSuccess
-            })).catch(err => reject(this.buildDeviceErr(err)))
+            ).then(()=> resolve(successfulClose)
+            ).catch(err => reject(this.buildDeviceErr(err)))
     );
 
     clearGattCache = () => {
@@ -510,7 +485,6 @@ class PinPad extends PinStatusParser {
         this.receiveDataChar = null;
         this.commandCharacteristic = null;
         this.sendLenToDevice = null;
-
         this.commandSent = false;
         this.commandRespAvailable = false;
         this.swipeHasBegun = false;

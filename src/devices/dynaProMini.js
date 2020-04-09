@@ -14,24 +14,27 @@ class DpMini extends PinPad {
     }
 
     sendCommandWithResp = writeCommand => new Promise( (resolve, reject) => {
-        this.logDeviceState(`[INFO]: Below command sent to device || ${new Date()}`);
-        this.logDeviceState(writeCommand);
+        this.logDeviceState("[SEND CMD]: Sending command to device: ", writeCommand, new Date());
         
-        this.sendPinCommand(writeCommand)
-        .then( () => (this.commandRespAvailable || this.waitForDeviceResponse(16)) )
+        return this.sendPinCommand(writeCommand)
+        .then( () => (this.commandRespAvailable) ? Promise.resolve(true) : this.waitForDeviceResponse(16) )
         .then( waitResp => (waitResp) ? this.readCommandResp() : this.tryCommandAgain(writeCommand) )
         .then( response => {
             this.commandRespAvailable = false;
 
             return resolve( response );
-        }).catch( err => reject( this.buildDeviceErr(err) ));
+        }).catch( err => {
+            this.commandRespAvailable = false;
+            
+            return reject( this.buildDeviceErr(err) )
+        });
     });
 
-    tryCommandAgain = writeCommand => this.sendPinCommand(writeCommand)
+    tryCommandAgain = writeCommand => new Promise( (resolve, reject) => this.sendPinCommand(writeCommand)
         .then( () => this.waitForDeviceResponse(5) )
-        .then( waitResp => (waitResp) ? this.readCommandResp()
-            : Promise.reject( this.buildDeviceErr(responseNotReceived))
-        );
+        .then( waitResp => (waitResp) ? resolve( this.readCommandResp() )
+            : reject( this.buildDeviceErr(responseNotReceived) )
+        ));
 
     //#region GetDeviceInfo
     getDeviceInfo = () => new Promise( (resolve, reject) => (!this.device) ?

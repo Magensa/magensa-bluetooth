@@ -1,20 +1,27 @@
 const openSuccess = "Device Open";
 const closeSuccess = "Device Closed"
 const successCode = 0;
-
 const swipeListening = "Success, listening for swipe"
-
 const deviceNotIdle = "Device not idle";
+const tDynamo = "tDynamo";
+const eDynamo = "eDynamo";
+const dynaProGo = "dynaProGo";
+const dpMini = "DynaPro Mini";
 
 const noSessionToClear = Object.freeze({
     code: 0,
     message: "Success, there was no session to clear"
 });
 
-const tDynamo = "tDynamo";
-const eDynamo = "eDynamo";
-const dynaProGo = "dynaProGo";
-const dpMini = "DynaPro Mini";
+const gattBusy = Object.freeze({
+    code: 19, 
+    message: "GATT operation already in progress."
+});
+
+const successfulClose = Object.freeze({
+    code: successCode,
+    message: closeSuccess
+});
 
 const cardTypeAll = Object.freeze({
     [eDynamo]: 0x03,
@@ -54,5 +61,7 @@ export {
     dynaProGo,
     dpMini,
     cardTypeAll,
-    cardTypesObj
+    cardTypesObj,
+    gattBusy,
+    successfulClose
 }
