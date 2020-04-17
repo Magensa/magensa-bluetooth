@@ -40,7 +40,7 @@ class DeviceBase extends ErrorHandler {
     }
 
     cardTypes = cardTypeStr => (cardTypeStr !== 'all') ? 
-        (cardTypesObj[ cardTypeStr ] || 0x03) : (cardTypeAll[ this.device.deviceType ] || 0x03);
+        (cardTypesObj[ cardTypeStr ] || 0x03) : (cardTypeAll[ this.deviceType ] || 0x03);
         
 
     connect = () => new Promise( (resolve, reject) => {

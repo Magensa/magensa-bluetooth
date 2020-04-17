@@ -8,6 +8,10 @@ const eDynamo = "eDynamo";
 const dynaProGo = "dynaProGo";
 const dpMini = "DynaPro Mini";
 
+const configStr = "Configuration";
+const unknown = "Unknown";
+const ascii = "ASCII";
+
 const noSessionToClear = Object.freeze({
     code: 0,
     message: "Success, there was no session to clear"
@@ -63,5 +67,8 @@ export {
     cardTypeAll,
     cardTypesObj,
     gattBusy,
-    successfulClose
+    successfulClose,
+    configStr,
+    unknown,
+    ascii
 }

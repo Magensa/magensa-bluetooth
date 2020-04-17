@@ -2,12 +2,15 @@ import Scra from './scra';
 import { 
     swipeListening,
     openSuccess, 
-    successCode 
+    successCode,
+    eDynamo
 } from '../utils/constants';
 
 class EDynamo extends Scra {
     constructor(device, callBacks) {
         super(device, callBacks);
+
+        this.deviceType = eDynamo;
     }
 
     getCardService = () => new Promise( (resolve, reject) => 

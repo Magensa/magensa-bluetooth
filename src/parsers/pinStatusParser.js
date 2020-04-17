@@ -1,6 +1,7 @@
-import PinUtils from '../utils/pinUtils';
+import ParsePinConfig from './pinConfiguration';
+import { unknown } from '../utils/constants';
 
-class PinStatusParser extends PinUtils {
+class PinStatusParser extends ParsePinConfig {
     constructor(device, callBacks) {
         super(device, callBacks);
 
@@ -301,21 +302,21 @@ class PinStatusParser extends PinUtils {
                 return ({
                     emvCardholderStatus: this.cardholderStatusIds[ cardholderResp[1] ],
                     methodSelected: (cardholderResp[4] === 0x01) ? "Credit" : 
-                    (cardholderResp[4] === 0x02) ? "Debit" : "Unknown/Undocumented payment method selected"
+                    (cardholderResp[4] === 0x02) ? "Debit" : `${unknown}/Undocumented payment method selected`
                 });
             case 0x20:
                 return ({
-                    emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `Unknown/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`),
+                    emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `${unknown}/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`),
                     tlvData: this.tlvParser( cardholderResp.slice(4) ) 
                 });
             default:
                 return (typeof cardholderResp[4] === 'undefined') ? 
                     ({
-                        emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `Unknown/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`)
+                        emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `${unknown}/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`)
                     }) 
                     : 
                     ({
-                        emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `Unknown/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`),
+                        emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `${unknown}/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`),
                         undocumentedData: this.convertArrayToHexString( cardholderResp.slice(4) )
                     });
         }
@@ -327,7 +328,7 @@ class PinStatusParser extends PinUtils {
 
     parseCardStatusReport = cardStatus => (cardStatus.length < 4) ?  
         ({ 
-            operationStatus: (this.operationStatus[ cardStatus[1] ] || "Unknown Operation Status" )
+            operationStatus: (this.operationStatus[ cardStatus[1] ] || `${unknown} Operation Status` )
         })
         : 
         ({
@@ -404,7 +405,7 @@ class PinStatusParser extends PinUtils {
     });
 
     parseCardData = partialNotification => {
-        let trackKey = (this.cardDataIds[ partialNotification[1] ] || "trackNameUnknown");
+        let trackKey = (this.cardDataIds[ partialNotification[1] ] || `trackName${unknown}`);
 
         if (partialNotification[2] === this.statusEnum.ok) {
 
@@ -448,7 +449,6 @@ class PinStatusParser extends PinUtils {
             }
         }
     }
-       
 }
 
 export default PinStatusParser;

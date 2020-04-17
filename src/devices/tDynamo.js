@@ -2,7 +2,8 @@ import Scra from './scra';
 import { 
     swipeListening,
     openSuccess, 
-    successCode 
+    successCode,
+    tDynamo
 } from '../utils/constants';
 import { commandNotAccepted } from '../errorHandler/errConstants';
 
@@ -12,6 +13,8 @@ class TDynamo extends Scra {
 
         this.setHeadAlwaysOn = [0x58, 0x01, 0x01];
         //this.setHeadOffWhenIdle = Uint8Array.of(0x58, 0x01, 0x00);
+
+        this.deviceType = tDynamo
     }
 
     getCardService = () => new Promise( (resolve, reject) => 
