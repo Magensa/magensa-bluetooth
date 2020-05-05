@@ -6,7 +6,11 @@ import {
     deviceNotOpen,
     gattServerNotConnected
 } from '../errorHandler/errConstants';
-import { closeSuccess, successCode } from '../utils/constants';
+import { 
+    closeSuccess, 
+    successCode, 
+    openSuccess 
+} from '../utils/constants';
 
 class Scra extends ScraEmvParser {
     constructor(device, callBacks) {
@@ -30,13 +34,6 @@ class Scra extends ScraEmvParser {
         this.dataReadyId = "0508e6f8-ad82-898f-f843-e3410cb60202";
         this.dataReadStatusId = "0508e6f8-ad82-898f-f843-e3410cb60203";
 
-        this.transactionTypes = Object.freeze({
-            'purchase': 0x00,
-            'cashback': 0x02,
-            'refund': 0x20,
-            'contactlesscashback': 0x09
-        });
-
         this.emvOptions = Object.freeze({
             'normal': 0x00,
             'bypasspin': 0x01,
@@ -44,6 +41,14 @@ class Scra extends ScraEmvParser {
             'quickchip': 0x80,
             'pinbypassquickchip': 0x81,
             'forceonlinequickchip': 0x82
+        });
+
+        this.resultCodes = Object.freeze({
+            '0000': "Success",
+            '038B': "Invalid Selection Status",
+            '038C': 'Invalid Selection Result',
+            '038D': "Failure, no transaction currently in progress",
+            '038F': "Failure, transaction already in progress"
         });
 
         this.emvCommandBase = [0x49, 0x19, 0x00, 0x00, 0x03, 0x00, 0x00, 0x13];
@@ -61,41 +66,45 @@ class Scra extends ScraEmvParser {
                 service.getCharacteristic(this.cardDataNotification)
             ).then(characteristic => {
                 this.logDeviceState(`[GATT NOTIFICATIONS]: Request to cache characteristics, start notifications, and attach listeners. || ${new Date()}`);
-                this.cardDataListener = characteristic;
-                return this.cardDataListener.startNotifications()
-            }).then(characteristic => {
-                this.cardDataListener.removeEventListener('characteristicvaluechanged', this.cardDataHandler);
-                this.cardDataListener.addEventListener('characteristicvaluechanged', this.cardDataHandler);
                 
-                return;
+                return characteristic.startNotifications()
+            }).then(characteristic => {
+                characteristic.removeEventListener('characteristicvaluechanged', this.cardDataHandler);
+                characteristic.addEventListener('characteristicvaluechanged', this.cardDataHandler);
+                
+                this.cardDataListener = characteristic;
+                return Promise.resolve();
             }).then( 
                 () => this.cardService.getCharacteristic(this.commandCharId)
             ).then(characteristic => {
                 this.commandCharacteristic = characteristic;
 
                 //If this library is being used in a web application
-                //Make sure the device cancels any active command, and disconnects properly upon window unload.
+                //Make sure the device disconnects properly upon window unload.
                 if (window) {
                     window.removeEventListener('beforeunload', this.onDestroyHandler);
                     window.addEventListener('beforeunload', this.onDestroyHandler);
                 }
 
-                return;
+                return Promise.resolve();
             }).then(
                 () => this.cardService.getCharacteristic(this.dataReadyId)
+            ).then( characteristic => characteristic.startNotifications()
             ).then( characteristic => {
+                characteristic.removeEventListener('characteristicvaluechanged', this.dataReadyHandler);
+                characteristic.addEventListener('characteristicvaluechanged', this.dataReadyHandler);
+
                 this.dataReadyCharacteristic = characteristic;
-                return this.dataReadyCharacteristic.startNotifications()
-            }).then( characteristic => {
-                this.dataReadyCharacteristic.removeEventListener('characteristicvaluechanged', this.dataReadyHandler);
-                this.dataReadyCharacteristic.addEventListener('characteristicvaluechanged', this.dataReadyHandler);
-                return;
+                return Promise.resolve();
             }).then(
                 () => this.cardService.getCharacteristic(this.dataReadStatusId)
             ).then( characteristic => {
                 this.dataReadStatusCharacteristic = characteristic;
                 this.logDeviceState(`[GATT NOTIFICATIONS]: Success! Cached characteristics, started notifications, and attached listeners. || ${new Date()}`)
-                return resolve();
+                return resolve({
+                    code: successCode,
+                    message: openSuccess
+                });
             }).catch(err => reject( err ))
     );
 
@@ -103,8 +112,7 @@ class Scra extends ScraEmvParser {
         let eventValue = event.target.value;
         let formattedEventValue = this.readByteArray(eventValue);
 
-        this.logDeviceState('dataReady listener:');
-        this.logDeviceState(formattedEventValue);
+        this.logDeviceState(`dataReady listener: ${this.convertArrayToHexString(formattedEventValue)}`);
 
         if (this.commandSent) {
             this.commandRespAvailable = true;
@@ -131,8 +139,9 @@ class Scra extends ScraEmvParser {
             if (this.checkNotificationLength()) {
                 this.initialNotification = (this.rleFormats[ this.rawData[0][0] ]) ? this.decodeRLE(this.rawData[0]) : this.rawData[0];
                 this.logDeviceState(this.rawData);
-
-                if (this.isSwipeData(this.initialNotification[0]) ) {
+                
+                //Check if swipe data
+                if (this.initialNotification[0] === 0 || this.initialNotification[0] === 1) {
                     return this.returnToUser(this.transactionCallback)( this.parseHidData( this.buildInitialDataArray(true) ) );
                 }
                 else {
@@ -162,10 +171,9 @@ class Scra extends ScraEmvParser {
                 });
             case "0302":
                 this.logDeviceState("==User Selection Request==");
-                this.logDeviceState(builtNotification);
                 this.logDeviceState(this.convertArrayToHexString(builtNotification));
                 //TODO: Further investigation warranted for this circumstance.
-                //return this.returnToUser(this.userSelectionCallback)( buildNotification );
+                return this.returnToUser(this.transactionStatusCallback)( this.parseUserSelectionRequest(buildNotification) );
                 break;
             case "0303":
                 this.logDeviceState("==ARQC Message==");
@@ -206,12 +214,16 @@ class Scra extends ScraEmvParser {
         emvOptions,
         authorizedAmount
     }) => {
+        console.log(`timeout: ${timeout} || cardType: ${cardType} || transactionType: ${transactionType} || emvOptions: ${emvOptions} || authorizedAmount: ${authorizedAmount} || cashBack: ${cashBack} || currencyCode: ${currencyCode} || reportVerbosity: ${reportVerbosity}`)
+        
         let command = [ 
             ...this.emvCommandBase, 
             timeout || 0x3C, 
             (cardType) ? this.cardTypes( cardType.toLowerCase() ) : 0x03,
-            (emvOptions) ? ( this.emvOptions[ emvOptions.toLowerCase() ] || 0x80 ) : 0x80
+            (typeof(emvOptions) !== 'undefined') ? (this.emvOptions[ emvOptions.toLowerCase() ]) : 0x80
         ];
+
+        console.log('base command: ', command);
 
         command = (authorizedAmount) ? 
             command.concat( this.convertNumToAmount(authorizedAmount) )
@@ -240,9 +252,6 @@ class Scra extends ScraEmvParser {
     readBatteryLevel = () => new Promise( resolve => 
         this.sendCommandWithResp([0x45, 0x00]).then(value => resolve( value[2] ))
     );
-
-    //Checking if first byte is 0 or 1 (card data normal or card data rle).
-    isSwipeData = firstByte => ( firstByte === 0 || firstByte === 1 );
 
     checkNotificationLength = () => Math.max(...Object.keys(this.rawData)) === this.maxBlockId - 1;
    
@@ -355,8 +364,45 @@ class Scra extends ScraEmvParser {
                     serialNumber: deviceInfo[1],
                     isConnected: this.device.gatt.connected
                 })
-            ).catch(err => this.buildDeviceErr(err))
+            ).catch(err => reject( this.buildDeviceErr(err) ))
     );
+
+    sendUserSelection = selectionResult => new Promise((resolve, reject) => (!this.device.gatt.connected) ? 
+        reject( this.buildDeviceErr(deviceNotOpen) ) 
+        : this.sendCommandWithResp([0x49, 0x08, 0x00, 0x00, 0x03, 0x02, 0x00, 0x02, 0x00, selectionResult])
+            .then(resp => {
+                this.logDeviceState(`[User Selection Resp]: ${this.convertArrayToHexString(resp)}`);
+                
+                return resolve({
+                    userSelectionResponse: (this.resultCodes[ 
+                        this.convertArrayToHexString( resp.slice(4, 6) ) 
+                    ] || "Unknown or undocumented result code")
+                });
+            }).catch(err => reject( this.buildDeviceErr(err) ))
+    )
+
+    sendArpc = arpcResp => new Promise((resolve, reject) => {
+        if (!this.device.gatt.connected)
+            return reject( this.buildDeviceErr(deviceNotOpen) );
+
+        if (typeof arpcResp !== 'string' && typeof arpcResp !== 'object')
+            return reject( this.buildDeviceErr( wrongInputTypes(['string', 'array of numbers']) ) );
+        
+        const dataLen = (typeof arpcResp === 'string') ? (arpcResp.length / 2) : arpcResp.length;
+        const inputData = (typeof arpcResp === 'object') ? arpcResp : this.hexToBytes(arpcResp);
+
+        const arpcCmd = [0x49, (dataLen + 6), 0x00, 0x00, 0x03, 0x03, 0x00, dataLen, ...inputData ];
+
+        return this.sendCommandWithResp(arpcCmd).then(resp => {
+            this.logDeviceState(`[Send ARPC Resp]: ${this.convertArrayToHexString(resp)}`);
+            const resultCode = (resp.length > 5) ? this.convertArrayToHexString( resp.slice(4, 6) ) : "";
+
+            return resolve({
+                sendArpcResponse: (this.resultCodes[ resultCode ] || "Unknown or undocumented result code")
+            })
+        })
+    })
+    
 
     clearGattCache = () => {
         if (window)
@@ -404,6 +450,11 @@ class Scra extends ScraEmvParser {
             message: closeSuccess
         })).catch(err => reject( this.buildDeviceErr(err) ))
     ) 
+
+    clearSession = () => new Promise((resolve, reject) => 
+        (this.device && this.device.gatt.connected) ? 
+            resolve("SCRA devices do not carry a session") 
+            : reject( this.buildDeviceErr(deviceNotOpen)) )
 }
 
 export default Scra;

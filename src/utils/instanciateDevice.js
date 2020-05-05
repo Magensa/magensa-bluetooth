@@ -2,7 +2,17 @@ import DpMini from '../devices/dynaProMini';
 import DynProGo from '../devices/dynaProGo';
 import EDynamo from '../devices/eDynamo';
 import TDynamo from '../devices/tDynamo';
+import { 
+    tDynamo,
+    eDynamo,
+    dynaProGo,
+    dpMini 
+} from '../utils/constants'; 
 
+const commandNotUsed = isScra => 
+    () => Promise.resolve(`${(isScra ? 'SCRA' : 'PinPad')} devices do not use this command`);
+
+    
 class DeviceInterface {
     constructor({ 
         getCardService,
@@ -14,26 +24,34 @@ class DeviceInterface {
         getDeviceInfo,
         requestCardSwipe,
         isDeviceConnected,
-        disconnect
+        disconnect,
+        requestPinEntry,
+        setDisplayMessage,
+        sendUserSelection,
+        sendArpc
     }) {
         this.openDevice = getCardService;
         this.startTransaction = startTransaction;
         this.cancelTransaction = cancelTransaction;
         this.sendCommand = sendCommandWithResp;
-        this.clearSession = (clearSession) ? clearSession : () => Promise.resolve();
+        this.clearSession = clearSession;
         this.closeDevice = closeDevice;
         this.deviceInfo = getDeviceInfo;
         this.requestCardSwipe = requestCardSwipe;
         this.isDeviceOpen = isDeviceConnected;
-        this.forceDisconnect = disconnect
+        this.forceDisconnect = disconnect;
+        this.requestPinEntry = (requestPinEntry) ? requestPinEntry : commandNotUsed(true);
+        this.setDisplayMessage = (setDisplayMessage) ? setDisplayMessage : commandNotUsed(true);
+        this.sendUserSelection = (sendUserSelection) ? sendUserSelection : commandNotUsed();
+        this.sendArpcResponse = (sendArpc) ? sendArpc : () => Promise.resolve("Feature Pending Completion");
     }
 };
 
 const newDeviceInstance = {
-    eDynamo: (device, callbacks) => new EDynamo(device, callbacks),
-    tDynamo:  (device, callbacks) => new TDynamo(device, callbacks),
-    dynaProGo: (device, callbacks) => new DynProGo(device, callbacks),
-    "DynaPro Mini": (device, callbacks) => new DpMini(device, callbacks),
+    [eDynamo]: (device, callbacks) => new EDynamo(device, callbacks),
+    [tDynamo]:  (device, callbacks) => new TDynamo(device, callbacks),
+    [dynaProGo]: (device, callbacks) => new DynProGo(device, callbacks),
+    [dpMini]: (device, callbacks) => new DpMini(device, callbacks),
 }
 
 export const buildDeviceObject = (device, callbacks, deviceTypeString) => ({

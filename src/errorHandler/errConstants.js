@@ -62,6 +62,18 @@ const commandNotAccepted = Object.freeze({
     message: "Device did not accept command"
 });
 
+const missingRequiredFields = fieldName => Object.freeze({
+    code: 1014,
+    name: "MissingRequiredParameter",
+    message: `'${fieldName}' is required to call this function.`
+});
+
+const wrongInputTypes = acceptableTypes => Object.freeze({
+    code: 1015,
+    name: "IncorrectInputType",
+    message: `Parameter type was not correct, acceptable type(s) are: ${acceptableTypes.join(", ")}`
+});
+
 export {
     commandNotAccepted,
     commandNotSent,
@@ -73,5 +85,7 @@ export {
     commandNotSentFromHost,
     getServiceFail,
     notFoundObj,
-    apiNetworkErr
+    apiNetworkErr,
+    missingRequiredFields,
+    wrongInputTypes
 }

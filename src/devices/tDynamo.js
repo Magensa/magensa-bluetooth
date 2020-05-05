@@ -1,7 +1,6 @@
 import Scra from './scra';
 import { 
     swipeListening,
-    openSuccess, 
     successCode,
     tDynamo
 } from '../utils/constants';
@@ -19,10 +18,8 @@ class TDynamo extends Scra {
 
     getCardService = () => new Promise( (resolve, reject) => 
         this.getCardServiceBase()
-        .then(() => resolve({
-            code: successCode,
-            message: openSuccess
-        })).catch( err => reject(this.buildDeviceErr(err)) )
+        .then(resp => resolve(resp)
+        ).catch( err => reject(this.buildDeviceErr(err)) )
     );
 
     requestCardSwipe = () => new Promise( (resolve, reject) => (!this.device.gatt.connected) ?

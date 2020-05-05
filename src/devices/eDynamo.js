@@ -1,7 +1,6 @@
 import Scra from './scra';
 import { 
     swipeListening,
-    openSuccess, 
     successCode,
     eDynamo
 } from '../utils/constants';
@@ -15,23 +14,20 @@ class EDynamo extends Scra {
 
     getCardService = () => new Promise( (resolve, reject) => 
         this.getCardServiceBase(1)
-        .then(() => resolve({
-            code: successCode,
-            message: openSuccess
-        })).catch( err => reject(this.buildDeviceErr(err)) )
+        .then(resp => resolve(resp)
+        ).catch( err => reject(this.buildDeviceErr(err)) )
     );
 
     requestCardSwipe = () => new Promise( (resolve, reject) => 
         (!this.device.gatt.connected) ? 
-        this.getCardServiceBase(1)
-        .then( () => 
-            resolve({ 
-                code: successCode,
-                message: swipeListening
-            }) 
-        ).catch(err => reject(this.buildDeviceErr(err) ))
-        :
-        resolve({
+            this.getCardServiceBase(1)
+            .then( () => 
+                resolve({ 
+                    code: successCode,
+                    message: swipeListening
+                }) 
+            ).catch(err => reject(this.buildDeviceErr(err) ))
+        : resolve({
             code: successCode,
             message: swipeListening
         }) 

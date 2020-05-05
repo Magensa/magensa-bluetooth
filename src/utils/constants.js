@@ -44,11 +44,6 @@ const cardTypesObj = Object.freeze({
     'all': 0x07
 });
 
-const eDynamoPattern = new RegExp(/^eDynamo-/);
-const tDynamoPattern = new RegExp(/^tDynamo-/);
-const dpMiniPattern = new RegExp(/^DPMini/);
-const dpGoPattern = new RegExp(/^DPG/);
-
 export {
     openSuccess,
     successCode,
@@ -56,10 +51,6 @@ export {
     deviceNotIdle,
     closeSuccess,
     noSessionToClear,
-    eDynamoPattern,
-    tDynamoPattern,
-    dpMiniPattern,
-    dpGoPattern,
     tDynamo,
     eDynamo,
     dynaProGo,

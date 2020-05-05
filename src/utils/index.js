@@ -54,6 +54,14 @@ class Utilities {
         return asciiResp.trim();
     }
 
+    hexToBytes = hexStr => {
+        let bytes = [];
+        for (let current = 0; current < hexStr.length; current += 2)
+            bytes.push( parseInt(hexStr.substr(current, 2), 16) );
+    
+        return bytes;
+    }
+
     decodeRLE = arraySegment => {
         let returnSegment = [ arraySegment[0] ];
     

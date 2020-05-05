@@ -36,14 +36,14 @@ class ScraEmvParser extends TrxStatusParser {
         })
         :
         ({
-            signatureRequired: (emvData[11] === 1),
+            signatureRequired: (emvData[11] === 0x80) ? "CBC-MAC checked in ARQC online response" : (emvData[11] === 0x01),
             batchData: this.convertArrayToHexString( emvData.slice(11) ),
             batchDataParsed: this.tlvParser( emvData.slice(14), true )
         })
 
     //Read Result Code from startTransaction command and return to user. If not 0 - return error message.
     parseEmvCommandResponse = resp =>  {
-        let resultCode = resp.slice(4, 6);
+        const resultCode = resp.slice(4, 6);
 
         //result code of [0x00, 0x00] is success.
         return (parseInt( resultCode.join("") )) ?
@@ -58,6 +58,14 @@ class ScraEmvParser extends TrxStatusParser {
                 message: "Success, transaction has started"
             })
     }
+
+    parseUserSelectionRequest = selectionRequest => ({
+        userSelectionRequest: {
+            selectionType: (selectionRequest[0] === 0x00) ? "Application Selection" : "Language Selection",
+            timeRemaining:  selectionRequest[1],
+            menuItems: this.convertArrayToHexString(selectionRequest.slice(2))
+        }
+    })
 }
 
 export default ScraEmvParser;

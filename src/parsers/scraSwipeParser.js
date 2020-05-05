@@ -99,7 +99,7 @@ class ScraSwipeParser extends DeviceBase {
 
     formatSerialNumber = (trackInfo, trackData) => ({
         ...trackInfo,
-        serialNumber: this.bufferToUtf8(trackData)
+        serialNumber: this.bufferToUtf8( (trackData.length > 7 ? trackData.slice(0, 7) : trackData ) )
     });
 
     //Moved Exp and PAN formating to Utils class - for inheritance.
@@ -113,7 +113,7 @@ class ScraSwipeParser extends DeviceBase {
     formatTrackWithDecode = (trackInfo, dataProp, decodeStatusValue, trackValue) => ({
         ...trackInfo,
         [dataProp] : trackValue,
-        [`${dataProp}DecodeStatus`] : this.convertStatusToString[ decodeStatusValue ],
+        [`${dataProp}DecodeStatus`] : decodeStatusValue === 0x00 ? "Ok" : "Error",
         [`${dataProp}DecodeStatusCode`] : decodeStatusValue
     });
 }

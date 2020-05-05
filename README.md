@@ -156,6 +156,14 @@ Emv Options object is optional.  All property values have default values. Any pr
 | toneChoice | Select device beep behavior | String | ```'noSound', 'oneBeep', 'twoBeeps'``` | ```'oneBeep'``` |
 | isFallback | execute swipe with fallback flag. Be aware this will set displayType to ```'chipErrorUseSwipe'``` | Boolean | ```true``` or ```false``` | ```false``` | 
 
+## PIN Options Object
+| Property Name | Description | Type | Acceptable Values | Default Value | Notes |
+|:------------:|:-----------:|:--------------:|:---------------:|:---------------:|:---------------:|
+| languageSelection | Define language prompt behavior | String | ```'disabled', 'englishFrench', 'allSpecified' ``` | ```'disabled'``` | ```'allSpecified'``` uses tag DFDF2D for available languages |
+| displayType | Define prompt template for PIN entry | String | ```'enterPin', 'enterPinAmount', 'reEnterPin', 'reEnterPinAmount', 'verifyPin'``` | ```'enterPin'``` | |
+| timeout  | time, in seconds, before requestPin timeout | Number | 1 - 255 (0 for 256 seconds) | 30 | |
+| toneChoice | Select device beep behavior | String | ```'noSound', 'oneBeep', 'twoBeeps'``` | ```'oneBeep'``` | |
+| pinBlockFormat | Define Pin Block Format | String | ```'iso0', 'iso3'``` | ```'iso0'``` | Currently only ISO Format 0 and ISO Format 3 is supported | 
 
 # Callbacks
 User defined callback functions can be as granular as desired.  For this purpose - there is only one callback that is mandatory to provide to the ```scanForDevices``` method.  The remaining callbacks are subscription based.  In reference to the return objects for the below callbacks - please see the [Return Objects](#Return-Objects) section for object structures.

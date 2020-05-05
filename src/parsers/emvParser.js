@@ -1,10 +1,9 @@
-import { magTekTags } from "../configurations/emvTags";
 import SwipeParser from './swipeParser';
+import { dynaProGo } from '../utils/constants';
 
 class EmvParser extends SwipeParser {
     constructor() {
         super();
-        this.magTekTags = magTekTags;
 
         this.moreTagBytesFlag1 = 0x1F;
         this.moreTagBytesFlag2 = 0x80;
@@ -17,12 +16,28 @@ class EmvParser extends SwipeParser {
             0x01: "Declined",
             0x02: "Error",
             0x10: "Cancelled By Host",
+            0x11: "Confirm Amount No",
+            0x12: "Confirm Amount Timeout",
+            0x13: "Confirm Amount Cancel",
+            0x14: "MSR Select Debit",
+            0x15: "MSR Select Debit",
+            0x16: "MSR Select Credit/Debit timout",
+            0x17: "MSR Select Credit/Debit cancel",
+            0x18: "Signature Capture Cancelled by Host (SC-S Only | SC-F only)",
+            0x19: "Signature Capture Timeout (SC-S Only | SC-F Only)",
+            0x1A: "Signature Capture Cancelled by Cardholder (SC-S Only | SC-F Only)",
+            0x1B: "PIN Entry Cancelled by Host",
+            0x1C: "PIN entry timeout",
+            0x1D: "PIN entry Cancelled by Cardholder",
             0x1E: "Manual Selected Cancelled by Host",
             0x1F: "Manual Selection Timeout",
+            0x20: "Manual Selction Cancelled by Cardholder",
             0x21: "Waiting for Card Cancelled by Host",
             0x22: "Waiting for Card Timeout",
-            0x23: "Cancelled by Card Swipe (MSR)",
-            0xFF: "Unknown Transaction Status"
+            0x23: "Cancelled by Card Swipe (MSR) [SCRA] || Waiting for Card Cancelled by Cardholder [PIN]",
+            0x24: "Waiting for Card ICC Seated",
+            0x25: "Waiting for Card MSR Swiped",
+            0xFF: "Unknown Transaction Status",
         });
     }
 
@@ -94,7 +109,6 @@ class EmvParser extends SwipeParser {
 
                     result.push({
                         "tag": tagBytes,
-                        "tagLabel": (this.magTekTags[tagBytes]) ? this.magTekTags[tagBytes] : "Tag Name not yet documented",
                         "tagLength": (!lengthValue) ? (valueBytes.length + 1 / 2) : lengthValue,
                         "tagValue": this.hexOrAsciiFormatter(tagBytes, valueBytes, isMsr)
                     });
@@ -114,13 +128,14 @@ class EmvParser extends SwipeParser {
     hexOrAsciiFormatter = (tagBytes, valueBytes, isMsr) => {
         switch(tagBytes) {
             case "DFDF1A":
-                return `${valueBytes} ${this.trxStatusToString[parseInt(valueBytes, 16)]}`
+                return `${valueBytes} ${this.trxStatusToString[ parseInt(valueBytes, 16) ]}`
             case "DFDF4D":
-                return this.hexToAscii(valueBytes);
-            case "DFDF25":
-                return (isMsr) ? this.hexToAscii(valueBytes) : valueBytes;
             case "5F20":
                 return this.hexToAscii(valueBytes);
+            case "DFDF25":
+                return (isMsr) ? this.hexToAscii( (valueBytes ? valueBytes.substring(0, 14) : valueBytes) ) : valueBytes;
+            case "DFDF40":
+                return (valueBytes === 0x80) ? `${valueBytes}  CBC-MAC checked in ARQC online response` : (valueBytes === 0x01);
             default:
                 return valueBytes;
         }

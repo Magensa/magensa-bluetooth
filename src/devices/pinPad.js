@@ -4,9 +4,10 @@ import {
     readFailed, 
     commandNotSentFromHost, 
     commandNotSent,
-    deviceNotOpen
+    deviceNotOpen,
+    responseNotReceived
 } from '../errorHandler/errConstants';
-import { openSuccess, closeSuccess, successCode, noSessionToClear, gattBusy, successfulClose } from '../utils/constants';
+import { openSuccess, successCode, noSessionToClear, gattBusy, successfulClose } from '../utils/constants';
 
 class PinPad extends PinStatusParser {
     constructor(device, callBacks) {
@@ -28,19 +29,6 @@ class PinPad extends PinStatusParser {
         this.swipeHasBegun = false;
         this.transactionHasStarted = false;
         this.dataGathered = false;
-        this.startTransactionCommand = null;
-
-        this.transactionTypes = Object.freeze({
-            'purchase': 0x00,
-            'cashadvance': 0x01,
-            'cashback': 0x02,
-            'purchasegoods': 0x04,
-            'purchaseservices': 0x08,
-            'contactlesscashback': 0x09,
-            'cashmanual': 0x12,
-            'refund': 0x20, 
-            'chiponlypayment': 0x50
-        });
 
         this.emvOptions = Object.freeze({
             'normal': 0x00,
@@ -69,7 +57,10 @@ class PinPad extends PinStatusParser {
             emvCompletion: 0xA2,
             getKsn: 0x30,
             requestSn: 0x1A,
-            deviceConfig: 0x09
+            deviceConfig: 0x09,
+            pinResponse: 0x24,
+            selectionResponse: 0x25,
+            displayResp: 0x27
         });
 
         this.toneChoice = Object.freeze({
@@ -79,6 +70,8 @@ class PinPad extends PinStatusParser {
         });
 
         this.initialNotification = [0x00];
+
+        this.clearSessionCmd = [0x01, 0x02, 0x00];
     }
 
     getCardService = () => new Promise( (parentResolve, parentReject) => (!this.device) ?
@@ -141,20 +134,14 @@ class PinPad extends PinStatusParser {
         let dataEvent = event.target.value.getUint8(0);
         this.logDeviceState(`[NOTIFY: AppDataToHostLength]: ${this.convertArrayToHexString([dataEvent])} || ${new Date()}`);
 
-        if (this.commandSent) {
-            if (dataEvent === 3 || dataEvent === 9) {
-                this.commandSent = false;
+        if (this.commandSent && dataEvent === 3) {
                 this.commandRespAvailable = true;
+                this.commandSent = false;
+                
                 return;
-            }
-            else {
-                //TODO: document this.
-                console.log("[!!] Unaccounted for code path. Data Event: ", dataEvent);
-            }
         }
-        else {
+        else
             return this.readCommandResp();
-        }
     }
 
     readCommandResp = () => new Promise( (resolve, reject) => (!this.receiveDataChar) ?
@@ -172,17 +159,17 @@ class PinPad extends PinStatusParser {
             }));
 
     readValueHandler = readValue => new Promise( resolve => {
-        let commandResp = this.readByteArray(readValue);
+        const commandResp = this.readByteArray(readValue);
         this.logDeviceState(`[READ: AppDataToHost]: ${this.convertArrayToHexString(commandResp)} || ${new Date()}`);
 
         if (commandResp.length) {
             switch(commandResp[0]) {
-                case this.reportIds.cardStatusReport:
-                    return resolve( this.handleCardStatusReport(commandResp) )
-                case this.reportIds.deviceStateReport:
-                    return resolve( this.handleDeviceStateReport(commandResp) )
                 case this.reportIds.responseAck:
                     return resolve( this.parseAckResponse(commandResp) )
+                case this.reportIds.deviceStateReport:
+                    return resolve( this.handleDeviceStateReport(commandResp) )
+                case this.reportIds.cardStatusReport:
+                    return resolve( this.handleCardStatusReport(commandResp) )
                 case this.reportIds.cardDataReport:
                     return resolve( this.handleCardDataReport(commandResp) )
                 case this.reportIds.emvCardholderStatus:
@@ -197,18 +184,26 @@ class PinPad extends PinStatusParser {
                     return resolve( this.formatSerialNumber(commandResp) )
                 case this.reportIds.deviceConfig:
                     return resolve( this.parseDeviceConfiguration(commandResp) )
+                case this.reportIds.pinResponse:
+                    return resolve( 
+                        this.transactionCallback( this.parsePinResponse(pinResp) )
+                    );
+                case this.reportIds.selectionResponse:
+                    return resolve( this.parseCardholderResponse(commandResp) )
+                case this.reportIds.displayResp:
+                    return resolve( 
+                        this.transactionStatusCallback( this.findOperationStatus(commandResp[1]) )
+                    );
                 default:
-                    return resolve( this.handleRawData(commandResp) );
+                    this.logDeviceState(
+                        `[Data Resp]: There is no parser for this data, returning to caller: ${this.convertArrayToHexString(commandResp)} || ${new Date()}`
+                    );
+                    return resolve( this.transactionCallback( commandResp ) );
             };
         }
         else
-            resolve()
+            resolve( commandResp );
     });
-
-    handleRawData = arrayData => {
-        this.logDeviceState(`[Data Resp]: There is no parser for this data, returning to caller: ${this.convertArrayToHexString(arrayData)} || ${new Date()}`);
-        return this.transactionCallback( arrayData );
-    }
 
     handleEmvCompletion = commandResp => {
         console.log("[!] EMV Completion: ", commandResp);
@@ -224,7 +219,6 @@ class PinPad extends PinStatusParser {
                break;
             case 0x63:
                 this.maxBlockId = Math.max(...Object.keys(this.rawData)) + 1;
-                this.logDeviceState(this.rawData);
                 this.handleBigBlockFinish();
                 break;
             default:
@@ -247,27 +241,17 @@ class PinPad extends PinStatusParser {
             this.parseCardStatusReport(commandResp)
         )
 
-        return (this.swipeHasBegun) ? 
-            this.sendCommandWithResp([0x01, 0x0A, 0x00])
-            .then( ackResp => {
-                this.transactionStatusCallback(ackResp);
-                return resolve()
-            }).catch(err => this.sendErrToCallback( this.buildDeviceErr(err) ))
-        : 
-            (this.transactionHasStarted) ? 
-                this.sendCommandWithResp([0x01, 0xAB, 0x00])
-                .then( ackResp => {
-                    this.transactionStatusCallback( ackResp);
-                    return resolve();
-                }).catch(err => this.sendErrToCallback( this.buildDeviceErr(err) ))
-                : 
-                resolve()
+        return (this.swipeHasBegun || this.transactionHasStarted) ? 
+            this.sendCommandWithResp( 
+                (this.swipeHasBegun ? [0x01, 0x0A, 0x00] : [0x01, 0xAB, 0x00])
+            ).then( ackResp => resolve( this.transactionStatusCallback(ackResp) )
+            ).catch(err => this.sendErrToCallback( this.buildDeviceErr(err) ))
+        : resolve()
     });
 
     handleDeviceStateReport = commandResp => {
         if (this.dataGathered) {
             this.dataGathered = false;
-            this.startTransactionCommand = null;
             
             //Send assembled transaction data to callback
             this.transactionCallback({
@@ -304,7 +288,7 @@ class PinPad extends PinStatusParser {
 
         return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
             : 
-            this.sendCommandWithResp([0x01, 0x02, 0x00])
+            this.sendCommandWithResp( this.clearSessionCmd )
             .then( ackResp => {
                 this.transactionStatusCallback(ackResp);
 
@@ -314,6 +298,12 @@ class PinPad extends PinStatusParser {
             }).then( resp => resolve(resp)
             ).catch( err => reject(err))
     });
+
+    buildSwipeCommand = ({ timeout, isFallback, toneChoice, displayType }) => ([ 
+        0x01, 0x03, (timeout || 0x3C),
+        (isFallback === true) ? 0x04 : (typeof(displayType) !== 'undefined') ? this.displayTypes[ displayType.toLowerCase() ] : 0x02,
+        (typeof(toneChoice) !== 'undefined') ? this.toneChoice[ toneChoice.toLowerCase() ] : 0x01
+    ]);
         
     startTransaction = emvOptions => new Promise( (resolve, reject) => {
         this.transactionHasStarted = true;
@@ -322,34 +312,15 @@ class PinPad extends PinStatusParser {
 
         return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
             :
-            this.sendCommandWithResp([0x01, 0x02, 0x00])
+            this.sendCommandWithResp(this.clearSessionCmd)
                 .then( ackResp => {
                         this.transactionStatusCallback(ackResp);
-                        this.logDeviceState(ackResp)
                         return Promise.resolve()
                 }).then( () =>
                     this.sendCommandWithResp( this.buildEmvCommand( emvOptions || {} ) )
                 ).then( resp => resolve(resp)
                 ).catch(err => reject(err));
     });
-
-    buildSwipeCommand = ({ 
-        timeout, 
-        isFallback, 
-        toneChoice, 
-        displayType
-    }) => {
-        let command = [ 
-            0x01, 0x03, 
-            (timeout || 0x3C),
-            (isFallback === true) ? 0x04 : (displayType) ? (this.displayTypes[ displayType.toLowerCase() ] || 0x02) : 0x02,
-            (toneChoice) ? (this.toneChoice[ toneChoice.toLowerCase() ] || 0x01) : 0x01
-        ];
-
-        this.startTransactionCommand = command;
-
-        return command;
-    }
 
     buildEmvCommand = ({ 
         timeout, 
@@ -364,31 +335,30 @@ class PinPad extends PinStatusParser {
         emvOptions 
     }) => {
         let command = [ 
-            0x01,
-            0xA2,
+            0x01, 0xA2,
             (timeout || 0x3C),
             (pinTimeout || 0x14),
             0x00,
-            (toneChoice) ? (this.toneChoice[ toneChoice.toLowerCase() ] || 0x01) : 0x01,
-            (cardType) ? this.cardTypes( cardType.toLowerCase() ) : 0x03,
-            (emvOptions) ? (this.emvOptions[ emvOptions.toLowerCase() ] || 0x00) : 0x00
+            (typeof(toneChoice) !== 'undefined') ? (this.toneChoice[ toneChoice.toLowerCase() ] || 0x01) : 0x01,
+            (cardType) ? this.cardTypes( cardType.toLowerCase() ) : this.cardTypes("all"),
+            (typeof(emvOptions) !== 'undefined') ? this.emvOptions[ emvOptions.toLowerCase() ] : 0x00
         ];
 
-        command = (authorizedAmount) ? 
+        command = (typeof(authorizedAmount) !== 'undefined') ? 
             command.concat( this.convertNumToAmount(authorizedAmount) ) 
             : command.concat( [0x00, 0x00, 0x00, 0x00, 0x01, 0x00] );
 
-        command = (transactionType) ? 
-            command.concat(this.transactionTypes[ transactionType.toLowerCase() ] || 0x00) 
+        command = (typeof(transactionType) !== 'undefined') ? 
+            command.concat(this.transactionTypes[ transactionType.toLowerCase() ])
             : command.concat(0x00)
 
-        command = (cashBack) ? command.concat( this.convertNumToAmount( cashBack ) ) 
+        command = (typeof(cashBack) !== 'undefined') ? command.concat( this.convertNumToAmount( cashBack ) ) 
             : command.concat( this.newArrayPartial(0x00, 6) );
 
         command = command.concat( this.newArrayPartial(0x00, 12) );
 
         command = (currencyCode) ? command.concat(( this.currencyCode[ currencyCode.toLowerCase() ] ||  this.currencyCode['default'] ))
-            : command.concat([0x08, 0x40])
+            : command.concat(this.currencyCode['dollar'])
 
         command.push(0x00);
 
@@ -398,19 +368,62 @@ class PinPad extends PinStatusParser {
 
         command = command.concat( this.newArrayPartial(0x00, 28) )
 
-        this.startTransactionCommand = command;
-
         return command;
+    }
+
+    requestPinEntry = pinOptions => new Promise( (resolve, reject) => {
+        this.logDeviceState(`[PIN]: Request for PIN entry start || ${new Date()}`);
+        console.log("pinoptions: ", pinOptions);
+
+        return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
+            :
+            this.sendCommandWithResp( this.buildPinCommand( pinOptions || {} ) )
+                .then( resp => resolve(resp)
+                ).catch(err => reject(err));
+    }); 
+
+    buildPinCommand = ({
+        languageSelection,
+        displayType,
+        timeout,
+        maxPinLength,
+        minPinLength,
+        toneChoice,
+        waitMessage,
+        verifyPin,
+        pinBlockFormat
+    }) => {
+
+        const pinDisplayOptions = Object.freeze({
+            "enterpin": 0x00,
+            "enterpinamount": 0x01,
+            "reenterpinamount": 0x02,
+            "reenterpin": 0x03,
+            "verifypin": 0x04
+        });
+
+        let pinCmd = [
+            0x01, 0x04,
+            (timeout || 0x1E),
+            ((displayType) ? (pinDisplayOptions[ displayType.toLowerCase() ] || 0x00): 0x00),
+            (this.findPinLength(maxPinLength, minPinLength)),
+            (toneChoice) ? (this.toneChoice[ toneChoice.toLowerCase() ] || 0x01) : 0x01,
+            (this.buildPinOptionsByte(languageSelection, waitMessage, verifyPin, pinBlockFormat))
+        ];
+
+        console.log('[PIN CMD] Built PIN Command: ', pinCmd);
+
+        return pinCmd;
     }
 
     sendPinCommand = writeCommand => new Promise( (resolve, reject) => {
         this.logDeviceState(`[AppFromHostLength]: ${this.convertArrayToHexString([writeCommand.length])} || ${new Date()}`);
 
-        return (!this.sendLenToDevice) ? reject( this.buildDeviceErr(commandNotSentFromHost))
-        : this.sendLenToDevice.writeValue(Uint8Array.of( writeCommand.length))
+        return (!this.sendLenToDevice) ? reject( this.buildDeviceErr(commandNotSentFromHost) )
+        : this.sendLenToDevice.writeValue(Uint8Array.of( writeCommand.length ))
             .then( () => {
-                this.commandSent = true;
                 this.logDeviceState(`[AppFromHostData]: ${this.convertArrayToHexString(writeCommand)} || ${new Date()}`);
+                this.commandSent = true;
                 return resolve( this.commandCharacteristic.writeValue( Uint8Array.from(writeCommand) ) )
             }).catch(err => {
                 this.commandSent = false;
@@ -435,7 +448,7 @@ class PinPad extends PinStatusParser {
     tryCommandAgain = writeCommand => new Promise( (resolve, reject) => this.sendPinCommand(writeCommand)
         .then( () => this.waitForDeviceResponse(5) )
         .then( waitResp => (waitResp) ? resolve( this.readCommandResp() )
-            : reject( this.buildDeviceErr(responseNotReceived))
+            : reject( this.buildDeviceErr(responseNotReceived) )
         )
     );
 
@@ -451,10 +464,10 @@ class PinPad extends PinStatusParser {
         this.logDeviceState(`[ClearSession]: Request to clear session || ${new Date()}`);
 
         return (!this.sendLenToDevice) ? resolve(noSessionToClear) 
-            : this.sendCommandWithResp([0x01, 0x02, 0x00])
+            : this.sendCommandWithResp(this.clearSessionCmd)
             .then( ackResp => {
                 this.transactionStatusCallback(ackResp);
-                this.logDeviceState(`[ClearSession]: Received clear session resp || ${new Date()}`);
+                this.logDeviceState(`[ClearSession]: Received clear session response || ${new Date()}`);
                 return resolve(ackResp)
             }).catch(err => reject( this.buildDeviceErr(err) ));
     });
@@ -500,7 +513,6 @@ class PinPad extends PinStatusParser {
         this.commandRespAvailable = false;
         this.swipeHasBegun = false;
         this.dataGathered = false;
-        this.startTransactionCommand = null;
     }
 }
 

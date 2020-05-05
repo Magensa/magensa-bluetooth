@@ -36,6 +36,18 @@ class DeviceBase extends ErrorHandler {
             'default': [0x00, 0x00] 
         });
 
+        this.transactionTypes = Object.freeze({
+            'purchase': 0x00,
+            'cashadvance': 0x01,
+            'cashback': 0x02,
+            'purchasegoods': 0x04,
+            'purchaseservices': 0x08,
+            'contactlesscashback': 0x09,
+            'cashmanual': 0x12,
+            'refund': 0x20, 
+            'chiponlypayment': 0x50
+        });
+
         this.commandRespAvailable = false;
     }
 
@@ -136,9 +148,10 @@ class DeviceBase extends ErrorHandler {
         ).catch(err => reject(err));
     });
 
-    onDestroyHandler = () => (this.device) ? 
-        (this.device.gatt.connected) ? this.device.gatt.disconnect() : null
-    : null;
+    onDestroyHandler = () => {
+        if (this.device && this.device.gatt.connected) 
+            return this.device.gatt.disconnect();
+    }
 
     waitForDeviceResponse = maxTries => new Promise( resolve => {
 

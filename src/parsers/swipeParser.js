@@ -3,13 +3,6 @@ import Utilities from "../utils";
 class SwipeParser extends Utilities {
     constructor() {
         super();
-
-        this.convertStatusToString = Object.freeze({
-            0x00: "Ok",
-            0x01: "Empty",
-            0x02: "Error",
-            0x04: "Disabled"
-        });
     }
 
     formatExpPAN = rawData => {
