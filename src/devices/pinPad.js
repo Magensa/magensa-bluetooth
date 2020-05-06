@@ -471,7 +471,7 @@ class PinPad extends PinStatusParser {
 
             workingOnPromise = true;
 
-            return dataBlock.promise()
+            return dataBlock.queuedPromise()
                 .then(() => dataBlock.resolve()
                 ).then(() => {
                     workingOnPromise = false;
@@ -514,8 +514,11 @@ class PinPad extends PinStatusParser {
     });
 
     sendArpc = arpcResp => new Promise((resolve, reject) => this.sendArpcBase(arpcResp)
-        .then(arpcCmd => this.sendCommandWithResp(arpcCmd))
-        .then(resp => {
+        .then(arpcCmd => this.delayPromise(200, arpcCmd)
+        ).then(cmd => {
+            console.log('passed through command: ', cmd);
+            return this.sendCommandWithResp(cmd)
+        }).then(resp => {
             this.logDeviceState(`[Send ARPC Result]: ${this.convertArrayToHexString(resp)}`);
 
             return resolve(resp);
