@@ -126,7 +126,7 @@ class Utilities {
 
     delayPromise = (delay, passedValue) =>
         new Promise( resolve => {
-            setTimeout( () => resolve(passedValue), delay);
+            setTimeout(resolve, delay, passedValue);
         });
 }
 

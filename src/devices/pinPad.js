@@ -29,6 +29,7 @@ class PinPad extends PinStatusParser {
         this.swipeHasBegun = false;
         this.transactionHasStarted = false;
         this.dataGathered = false;
+        this.isQuickChipTransaction = true;
 
         this.emvOptions = Object.freeze({
             'normal': 0x00,
@@ -153,7 +154,7 @@ class PinPad extends PinStatusParser {
             .catch( err => {
                 if (err.code === gattBusy.code && err.message === gattBusy.message) {
                     this.logDeviceState(`[INFO]: Read failed due to device being busy. Attempting read again || ${new Date()}`)
-                    return resolve( this.readCommandResp() )
+                    return this.delayPromise(100).then(() => resolve( this.readCommandResp() ))
                 }
                 else return reject(this.buildDeviceErr(err))
             }));
@@ -275,7 +276,6 @@ class PinPad extends PinStatusParser {
         }
         else {
             // TODO:
-            // console.log("Trailing card data: ", commandResp);
 
             this.logDeviceState("[ERROR] Undocumented Card Data below");
             this.logDeviceState(commandResp);
@@ -334,6 +334,8 @@ class PinPad extends PinStatusParser {
         authorizedAmount, 
         emvOptions 
     }) => {
+        this.isQuickChipTransaction = (isQuickChip === false) ? false : true;
+
         let command = [ 
             0x01, 0xA2,
             (timeout || 0x3C),
@@ -363,7 +365,7 @@ class PinPad extends PinStatusParser {
         command.push(0x00);
 
         command.push(
-            (isQuickChip === false) ? 0x00 : 0x01
+            (this.isQuickChipTransaction) ? 0x01 : 0x00 
         )
 
         command = command.concat( this.newArrayPartial(0x00, 28) )
@@ -402,12 +404,12 @@ class PinPad extends PinStatusParser {
             "verifypin": 0x04
         });
 
-        let pinCmd = [
+        const pinCmd = [
             0x01, 0x04,
             (timeout || 0x1E),
             ((displayType) ? (pinDisplayOptions[ displayType.toLowerCase() ] || 0x00): 0x00),
             (this.findPinLength(maxPinLength, minPinLength)),
-            (toneChoice) ? (this.toneChoice[ toneChoice.toLowerCase() ] || 0x01) : 0x01,
+            (typeof(toneChoice) !== 'undefined') ? this.toneChoice[ toneChoice.toLowerCase() ] : 0x01,
             (this.buildPinOptionsByte(languageSelection, waitMessage, verifyPin, pinBlockFormat))
         ];
 
@@ -415,6 +417,110 @@ class PinPad extends PinStatusParser {
 
         return pinCmd;
     }
+
+    buildArpcCommand = (len, data) => new Promise((resolve, reject) => {
+        this.sendBigBlockData(0xA4, len, data).then(
+            () => resolve([0x01, 0xA4, ...this.newArrayPartial(0x00, 10)])
+        ).catch(err => reject(err));
+    });
+
+    sendBigBlockData = (dataType, dataLen, data) => new Promise((parentResolve, parentReject) => {
+        let blockZero = [0x01, 0x10, dataType, 0x00, (dataLen & 0xFF)];
+
+        if (dataLen < 60) {
+            blockZero = blockZero.concat(...this.newArrayPartial(0x00, 60));
+            this.logDeviceState(`[Send Big Block Data Legacy]: ${this.convertArrayToHexString(blockZero)}`);
+
+            let legacyData = [0x01, 0x10, dataType, 0x01, dataLen, ...data];
+
+            if (legacyData.length < 65)
+                legacyData = legacyData.concat(...this.newArrayPartial(0x00, (65 - legacyData.length)))
+
+            return this.sendPinCommand(blockZero).then(resp => this.sendPinCommand(legacyData)
+                ).then(() => parentResolve()
+                ).catch(err => parentReject(this.buildDeviceErr(err)));
+        }
+        else {
+            this.sendExtendedBigBlockData(dataType, dataLen, data, blockZero).then(() => parentResolve());
+        }
+    });
+
+    sendExtendedBigBlockData = (dataType, dataLen, data, blockZero) => new Promise( (parentResolve, parentReject) => {
+        const numberOfBlocks = Math.ceil(dataLen / 60);
+        let workingOnPromise = false;
+        let commandBlocks = [];
+
+        blockZero = blockZero.concat([
+            ((dataLen >> 8) & 0xFF), 
+            ((dataLen >> 16) & 0xFF), 
+            ((dataLen >> 24) & 0xFF), 
+            0x01, 
+            ...this.newArrayPartial(0x00, 56)
+        ])
+
+        this.logDeviceState(`[Send Big Block Data Extended]: ${this.convertArrayToHexString(blockZero)} || ${new Date()}`);
+
+        const beginQueue = () => new Promise((beginQueueResolve, beginQueueReject) => {
+            if (workingOnPromise)
+                return this.delayPromise(500).then(() => beginQueueResolve( beginQueue() ));
+
+            const dataBlock = commandBlocks.shift();
+
+            if (!dataBlock)
+                return beginQueueResolve(true);
+
+            workingOnPromise = true;
+
+            return dataBlock.promise()
+                .then(() => dataBlock.resolve()
+                ).then(() => {
+                    workingOnPromise = false;
+                    return beginQueueResolve( beginQueue() )
+                }).catch(err => {
+                    workingOnPromise = false;
+                    beginQueueReject( dataBlock.reject(err) );
+                })
+        });
+
+        const enqueue = queuedPromise => new Promise((resolve, reject) => {
+            commandBlocks.push({
+                queuedPromise,
+                resolve,
+                reject,
+            });
+        });
+
+        enqueue( 
+            () => new Promise(innerResolve => 
+                this.sendPinCommand(blockZero).then(() => innerResolve()) ) 
+        );
+
+        for (let i = 0, block = 1; block <= numberOfBlocks; i + 60, block++) {
+            let dataForBlock = data.slice(i, (i + 60));
+            let blockCmd = [0x01, 0x10, dataType, block, dataForBlock.length, ...dataForBlock];
+
+            if (blockCmd.length !== 65)
+                blockCmd = blockCmd.concat( ...this.newArrayPartial(0x00, (65 - blockCmd.length)) )
+
+            enqueue( 
+                () => new Promise( innerResolve => 
+                    this.sendPinCommand(blockCmd).then( () => innerResolve()) )
+            );
+        }
+
+        this.logDeviceState(`[Send Big Block Data Extended]: Executing queue of ${commandBlocks.length} commands || ${new Date()}`);
+
+        return beginQueue().then(beginQueResp => parentResolve(beginQueResp)).catch(err => parentReject(err));
+    });
+
+    sendArpc = arpcResp => new Promise((resolve, reject) => this.sendArpcBase(arpcResp)
+        .then(arpcCmd => this.sendCommandWithResp(arpcCmd))
+        .then(resp => {
+            this.logDeviceState(`[Send ARPC Result]: ${this.convertArrayToHexString(resp)}`);
+
+            return resolve(resp);
+        }).catch(err => reject(this.buildDeviceErr(err)))
+    );
 
     sendPinCommand = writeCommand => new Promise( (resolve, reject) => {
         this.logDeviceState(`[AppFromHostLength]: ${this.convertArrayToHexString([writeCommand.length])} || ${new Date()}`);
@@ -431,7 +537,7 @@ class PinPad extends PinStatusParser {
             });
     });
 
-    sendCommandWithResp = writeCommand => new Promise( (resolve, reject) =>  this.sendPinCommand(writeCommand)
+    sendCommandWithResp = writeCommand => new Promise( (resolve, reject) => this.sendPinCommand(writeCommand)
         .then( () => (this.commandRespAvailable) ? Promise.resolve(true) : this.waitForDeviceResponse(16) )
         .then( waitResp => (waitResp) ? this.readCommandResp() : this.tryCommandAgain(writeCommand) )
         .then( response => {
@@ -513,6 +619,7 @@ class PinPad extends PinStatusParser {
         this.commandRespAvailable = false;
         this.swipeHasBegun = false;
         this.dataGathered = false;
+        this.isQuickChipTransaction = true;
     }
 }
 

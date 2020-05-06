@@ -28,7 +28,8 @@ class DeviceInterface {
         requestPinEntry,
         setDisplayMessage,
         sendUserSelection,
-        sendArpc
+        sendArpc,
+        setDeviceDateTime
     }) {
         this.openDevice = getCardService;
         this.startTransaction = startTransaction;
@@ -44,6 +45,7 @@ class DeviceInterface {
         this.setDisplayMessage = (setDisplayMessage) ? setDisplayMessage : commandNotUsed(true);
         this.sendUserSelection = (sendUserSelection) ? sendUserSelection : commandNotUsed();
         this.sendArpcResponse = (sendArpc) ? sendArpc : () => Promise.resolve("Feature Pending Completion");
+        this.setDeviceDateTime = (setDeviceDateTime) ? setDeviceDateTime : commandNotUsed();
     }
 };
 

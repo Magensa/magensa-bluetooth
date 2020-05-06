@@ -73,7 +73,8 @@ class PinStatusParser extends ParsePinConfig {
             0xAB: "requestEmvData",
             0x30: "getKsn",
             0x05: "cancelCommand",
-            0x1A: "requestDeviceInfo"
+            0x1A: "requestDeviceInfo",
+            0x10: "sendBigBlockData"
         });
 
         this.cardTypesEnum = Object.freeze({
@@ -261,6 +262,7 @@ class PinStatusParser extends ParsePinConfig {
         this.rawData = {};
 
         this.arqcArriving = false;
+        return (!this.isQuickChipTransaction) ? this.transactionCallback( this.cardDataObj ) : void(0);
     }
 
     handleBatchBigBlockFinish = () => {

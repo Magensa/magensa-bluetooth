@@ -11,7 +11,7 @@ module.exports = {
     libraryTarget: "umd",
     sourceMapFilename: 'magensa-bluetooth.map'
   },
-  devtool: 'nosources-source-map',
+  devtool: 'inline-source-map',
   plugins: [
     new CopyPlugin([
       { from: 'README.md', to: path.resolve(__dirname, 'dist') },

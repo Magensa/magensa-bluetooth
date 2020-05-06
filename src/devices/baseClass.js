@@ -4,7 +4,9 @@ import {
     gattServerNotConnected,
     getServiceFail,
     notFoundObj,
-    apiNetworkErr
+    deviceNotOpen,
+    apiNetworkErr,
+    wrongInputTypes
 } from '../errorHandler/errConstants';
 import { cardTypeAll, cardTypesObj, successfulClose } from '../utils/constants';
 
@@ -146,6 +148,21 @@ class DeviceBase extends ErrorHandler {
         return tryToConnect(0).then(
             cacheServiceResp => resolve( cacheServiceResp)
         ).catch(err => reject(err));
+    });
+
+    sendArpcBase = arpcResp => new Promise((resolve, reject) => {
+        if (!this.device.gatt.connected)
+            return reject( this.buildDeviceErr(deviceNotOpen) );
+
+        if (typeof arpcResp !== 'string' && typeof arpcResp !== 'object')
+            return reject( this.buildDeviceErr( wrongInputTypes(['string', 'array of numbers']) ) );
+
+        const dataLen = (typeof arpcResp === 'string') ? (arpcResp.length / 2) : arpcResp.length;
+        const inputData = (typeof arpcResp === 'string') ? this.hexToBytes(arpcResp) : arpcResp;
+
+        return resolve(
+            this.buildArpcCommand(dataLen, inputData)
+        )
     });
 
     onDestroyHandler = () => {

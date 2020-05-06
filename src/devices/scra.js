@@ -282,11 +282,11 @@ class Scra extends ScraEmvParser {
         return specifiedCallback(returnObj);
     }
 
-    buildDateTimeCommand = () => {
+    buildDateTimeCommand = specificTime => {
         let dateTimeCommand = [0x49, 0x22, 0x00, 0x00, 0x03, 0x0C, 0x00, 0x1C];
         dateTimeCommand = dateTimeCommand.concat( this.newArrayPartial(0x00, 17) );
         //Format Date segment below
-        let current = new Date();
+        const current = (specificTime instanceof Date) ? specificTime : new Date();
 
         //Month (zero based index, so add 1).
         dateTimeCommand.push( 
@@ -323,8 +323,11 @@ class Scra extends ScraEmvParser {
         return dateTimeCommand;
     }
 
-    setDeviceDateTime = () => this.sendCommandWithResp(
-        this.buildDateTimeCommand()
+    setDeviceDateTime = specificTime => new Promise((resolve, reject) => 
+        this.sendCommandWithResp(
+            this.buildDateTimeCommand(specificTime)
+        ).then(resp => resolve(resp)
+        ).catch(err => reject(this.buildDeviceErr(err)))
     );
 
     getKsn = () => new Promise( (resolve, reject) => 
@@ -360,6 +363,7 @@ class Scra extends ScraEmvParser {
             .then(
                 deviceInfo => resolve({
                     deviceName: this.device.name,
+                    deviceType: this.deviceType,
                     batteryLevel: deviceInfo[0],
                     serialNumber: deviceInfo[1],
                     isConnected: this.device.gatt.connected
@@ -381,28 +385,19 @@ class Scra extends ScraEmvParser {
             }).catch(err => reject( this.buildDeviceErr(err) ))
     )
 
-    sendArpc = arpcResp => new Promise((resolve, reject) => {
-        if (!this.device.gatt.connected)
-            return reject( this.buildDeviceErr(deviceNotOpen) );
+    buildArpcCommand = (len, data) => ([0x49, (len + 6), 0x00, 0x00, 0x03, 0x03, 0x00, len, ...data ]);
 
-        if (typeof arpcResp !== 'string' && typeof arpcResp !== 'object')
-            return reject( this.buildDeviceErr( wrongInputTypes(['string', 'array of numbers']) ) );
-        
-        const dataLen = (typeof arpcResp === 'string') ? (arpcResp.length / 2) : arpcResp.length;
-        const inputData = (typeof arpcResp === 'object') ? arpcResp : this.hexToBytes(arpcResp);
-
-        const arpcCmd = [0x49, (dataLen + 6), 0x00, 0x00, 0x03, 0x03, 0x00, dataLen, ...inputData ];
-
-        return this.sendCommandWithResp(arpcCmd).then(resp => {
+    sendArpc = arpcResp => new Promise((resolve, reject) => this.sendArpcBase(arpcResp)
+        .then(arpcCmd => this.sendCommandWithResp(arpcCmd))
+        .then(resp => {
             this.logDeviceState(`[Send ARPC Resp]: ${this.convertArrayToHexString(resp)}`);
             const resultCode = (resp.length > 5) ? this.convertArrayToHexString( resp.slice(4, 6) ) : "";
 
             return resolve({
                 sendArpcResponse: (this.resultCodes[ resultCode ] || "Unknown or undocumented result code")
             })
-        })
-    })
-    
+        }).catch(err => reject(this.buildDeviceErr(err)))
+    );
 
     clearGattCache = () => {
         if (window)

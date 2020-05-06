@@ -64,7 +64,7 @@ class PinUtils extends DeviceBase {
         : '0';
 
         const binaryResult = `000${languageSelection}${((waitMessage) ? '1' : '0')}${((verifyPin) ? '1' : '0')}${pinBlockFormat}`;
-        this.logDeviceState(`[PinOptionsByte]: binary string: ${binaryResult} || byte result: ${parseInt(binaryResult, 2)}`)
+        this.logDeviceState(`[PinOptionsByte]: binary string representation: ${binaryResult} || byte result: ${parseInt(binaryResult, 2)}`)
 
         return parseInt(binaryResult, 2);
     }
