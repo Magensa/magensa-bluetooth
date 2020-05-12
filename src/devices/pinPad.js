@@ -5,8 +5,7 @@ import {
     commandNotSentFromHost, 
     commandNotSent,
     deviceNotOpen,
-    responseNotReceived,
-    missingRequiredFields
+    responseNotReceived
 } from '../errorHandler/errConstants';
 import { openSuccess, successCode, noSessionToClear, gattBusy, successfulClose } from '../utils/constants';
 
@@ -31,14 +30,10 @@ class PinPad extends PinCmdBuilder {
         this.transactionHasStarted = false;
         this.dataGathered = false;
         this.isQuickChipTransaction = true;
-        this.hasTip = false;
+        this.deviceSerialNumber = null;
 
-        this.emvOptions = Object.freeze({
-            'normal': 0x00,
-            'bypasspin': 0x01,
-            'forceonline': 0x02,
-            'acquirernotavailable': 0x04
-        });
+        //TODO: examine scope
+        this.hasTip = false;
 
         this.displayTypes = Object.freeze({
             'swipeidlealternate': 0x00,
@@ -58,19 +53,12 @@ class PinPad extends PinCmdBuilder {
             emvCardholderStatus: 0x2C,
             bigBlockData: 0x29,
             emvCompletion: 0xA2,
-            getKsn: 0x30,
             requestSn: 0x1A,
             deviceConfig: 0x09,
             pinResponse: 0x24,
             selectionResponse: 0x25,
             displayResp: 0x27,
             tipCashbackReport: 0x30
-        });
-
-        this.toneChoice = Object.freeze({
-            'nosound': 0x00,
-            'onebeep': 0x01,
-            'twobeeps': 0x02
         });
 
         this.initialNotification = [0x00];
@@ -180,8 +168,6 @@ class PinPad extends PinCmdBuilder {
                     return resolve( this.handleEmvCompletion(commandResp) )
                 case this.reportIds.bigBlockData:
                     return resolve( this.handleBigBlockData(commandResp) )
-                case this.reportIds.getKsn:
-                    return resolve( this.formatKsnAndSn(commandResp) )
                 case this.reportIds.requestSn:
                     return resolve( this.formatSerialNumber(commandResp) )
                 case this.reportIds.deviceConfig:
@@ -307,25 +293,16 @@ class PinPad extends PinCmdBuilder {
         this.cardDataObj = {};
         this.logDeviceState(`[INFO]: EMV transaction begun || ${new Date()}`)
 
-        // return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
-        //     :
-        //     this.sendCommandWithResp(this.clearSessionCmd)
-        //         .then( ackResp => {
-        //                 this.transactionStatusCallback(ackResp);
-        //                 return this.buildEmvCommand( emvOptions || {} )
-        //         }).then( emvCommmand =>
-        //             this.sendCommandWithResp( emvCommmand )
-        //         ).then( resp => resolve(resp)
-        //         ).catch(err => reject( this.buildDeviceErr(err) ));
-
-        return this.buildEmvCommand( emvOptions || {} )
-                .then( emvCommmand =>
+        return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
+            : this.sendCommandWithResp(this.clearSessionCmd)
+                .then( ackResp => {
+                        this.transactionStatusCallback(ackResp);
+                        return this.buildEmvCommand( emvOptions || {} )
+                }).then( emvCommmand =>
                     this.sendCommandWithResp( emvCommmand )
                 ).then( resp => resolve(resp)
                 ).catch(err => reject( this.buildDeviceErr(err) ));
     });
-
-    
 
     requestPinEntry = pinOptions => new Promise( (resolve, reject) => {
         this.logDeviceState(`[PIN]: Request for PIN entry start || ${new Date()}`);
@@ -444,7 +421,7 @@ class PinPad extends PinCmdBuilder {
         //If Tip
         this.hasTip = true;
 
-        return this.buildTipOrCashbackCmd(tipCashbackOptions)
+        return this.buildTipOrCashbackCmd( (tipCashbackOptions || {} ))
             .then(tipCashbackCmd =>  {
                 console.log('returned with this command:', tipCashbackCmd, this.convertArrayToHexString(tipCashbackCmd));
                 
@@ -498,6 +475,66 @@ class PinPad extends PinCmdBuilder {
             : reject( this.buildDeviceErr(responseNotReceived) )
         )
     );
+
+     //#region GetDeviceInfo
+     getDeviceInfo = () => new Promise( (resolve, reject) => (!this.device.gatt.connected) ?
+        reject(this.buildDeviceErr(deviceNotOpen)) 
+        : this.gatherDeviceInfo()
+            .then( deviceInfo => resolve(deviceInfo)
+            ).catch(err => reject( this.buildDeviceErr(err)) )
+    );
+
+    gatherDeviceInfo = () => new Promise( (resolve, reject) => (this.deviceSerialNumber) ? 
+        resolve({
+            serialNumber: this.deviceSerialNumber,
+            deviceName: this.device.name,
+            deviceType: this.deviceType,
+            isConnected: this.device.gatt.connected
+        }) 
+        : this.checkIfDeviceIdle()
+            .then( () => this.getDeviceInfoProceed()
+            ).then( () => 
+                resolve({
+                    serialNumber: this.deviceSerialNumber,
+                    deviceName: this.device.name,
+                    deviceType: this.deviceType,
+                    isConnected: this.device.gatt.connected
+                })
+            ).catch(err => reject(err))
+    );
+
+    getDeviceInfoProceed = () => new Promise( (resolve, reject) => {
+        this.sendPinCommand([0x00, 0x1A, 0x05])
+        .then( () => (this.deviceSerialNumber) ? Promise.resolve(true) : this.waitForSn(7) 
+        ).then( waitResp => (waitResp) ? resolve() : 
+            reject( this.buildDeviceErr(responseNotReceived))
+        ).catch( err => reject(err))
+    })
+
+    checkIfDeviceIdle = () => new Promise(resolve => 
+        this.sendCommandWithResp([0x01, 0x1A, 0x05])
+            .then( ackResp => {
+                if (ackResp.code === 0x81) {
+                    return this.clearSession()
+                    .then( () => resolve( this.checkIfDeviceIdle() ));
+                }
+                else {
+                    this.transactionStatusCallback(ackResp);
+                    return resolve();
+                }
+            })
+    );
+
+    waitForSn = maxTries => new Promise( resolve => {
+
+        const waitForResponse = tryNumber => 
+            (tryNumber < maxTries) ? 
+                (this.deviceSerialNumber) ? resolve( true ) : setTimeout(() => waitForResponse(tryNumber + 1), 200)
+            : resolve( false );
+
+        waitForResponse(0);
+    });
+    //#endregion
 
     cancelTransaction = () => new Promise( (resolve, reject) => (!this.commandCharacteristic) ? 
         reject( this.buildDeviceErr(commandNotSent))

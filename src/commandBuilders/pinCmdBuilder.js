@@ -3,6 +3,19 @@ import PinStatusParser from '../parsers/pinStatusParser';
 class PinCmdBuilder extends PinStatusParser {
     constructor(device, callBacks) {
         super(device, callBacks);
+
+        this.toneChoice = Object.freeze({
+            'nosound': 0x00,
+            'onebeep': 0x01,
+            'twobeeps': 0x02
+        });
+
+        this.emvOptions = Object.freeze({
+            'normal': 0x00,
+            'bypasspin': 0x01,
+            'forceonline': 0x02,
+            'acquirernotavailable': 0x04
+        });
     }
 
     buildSwipeCommand = ({ timeout, isFallback, toneChoice, displayType }) => ([ 
@@ -125,18 +138,14 @@ class PinCmdBuilder extends PinStatusParser {
             "verifypin": 0x04
         });
 
-        const pinCmd = [
+        return ([
             0x01, 0x04,
             (timeout || 0x1E),
             ((displayType) ? (pinDisplayOptions[ displayType.toLowerCase() ] || 0x00): 0x00),
             (this.findPinLength(maxPinLength, minPinLength)),
             (typeof(toneChoice) !== 'undefined') ? this.toneChoice[ toneChoice.toLowerCase() ] : 0x01,
             (this.buildPinOptionsByte(languageSelection, waitMessage, verifyPin, pinBlockFormat))
-        ];
-
-        console.log('[PIN CMD] Built PIN Command: ', pinCmd);
-
-        return pinCmd;
+        ]);
     }
 
     buildArpcCommand = (len, data) => new Promise((resolve, reject) => {
@@ -170,7 +179,7 @@ class PinCmdBuilder extends PinStatusParser {
             {
                 prop: tipSelectionMode,
                 propName: 'tipSelectionMode',
-                condition: (commandType.toLowerCase() !== 'cashback'),
+                condition: (commandType && commandType.toLowerCase() !== 'cashback'),
                 validTypes: ['string'],
                 validValues: ['percent', 'amount']
             },
@@ -186,6 +195,7 @@ class PinCmdBuilder extends PinStatusParser {
             let tipCashbackCmd = [
                 0x01, 0xA0,
                 (typeof(timeout) !== 'undefined') ? timeout : 0x1E,
+                (commandType.toLowerCase() === 'tip') ? 0x00 : 0x01,
                 (typeof(toneChoice) === 'string') ? this.toneChoice[ toneChoice.toLowerCase() ] : this.toneChoice.onebeep
             ];
 
@@ -208,19 +218,19 @@ class PinCmdBuilder extends PinStatusParser {
                 (typeof(tipSelectionMode) === 'undefined') ? 0x00 : (tipSelectionMode === 'percent') ? 0x00 : 0x01
             )
 
-            tipCashbackCmd = (typeof(leftButton) !== 'undefined') ? 
-                (typeof(leftButton) === 'number') ? tipCashbackCmd.concat(this.convertNumToAmount(leftButton, 4)) : leftButton
-            : tipCashbackCmd.concat(this.newArrayPartial(0x00, 2));
+            tipCashbackCmd.push(
+                (typeof(leftButton) !== 'undefined') ? this.buildN2Format(leftButton) : 0x00 
+            )
 
-            tipCashbackCmd = (typeof(middleButton) !== 'undefined') ?
-                (typeof(middleButton) === 'number') ? tipCashbackCmd.concat(this.convertNumToAmount(middleButton, 4)) : middleButton
-            : tipCashbackCmd.concat(this.newArrayPartial(0x00, 2));
-                
-            tipCashbackCmd = (typeof(rightButton) !== 'undefined') ? 
-                (typeof(rightButton) === 'number') ? tipCashbackCmd.concat(this.convertNumToAmount(rightButton, 4)) : rightButton
-            : tipCashbackCmd.concat(this.newArrayPartial(0x00, 2));
+            tipCashbackCmd.push(
+                (typeof(middleButton) !== 'undefined') ? this.buildN2Format(middleButton) : 0x00 
+            )
 
-            tipCashbackCmd = tipCashbackCmd.concat(this.newArrayPartial(0x00, 26));
+            tipCashbackCmd.push(
+                (typeof(rightButton) !== 'undefined') ? this.buildN2Format(rightButton) : 0x00 
+            )
+
+            tipCashbackCmd = tipCashbackCmd.concat(this.newArrayPartial(0x00, 25));
 
             return resolve(tipCashbackCmd);
         }).catch(err => reject(err))

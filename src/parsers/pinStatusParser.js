@@ -92,7 +92,8 @@ class PinStatusParser extends ParsePinConfig {
             0x0A: "Chip Card",
             0x0B: "ICC Kernel Test",
             0x0C: "EMV Transaction",
-            0x0D: "Show PAN"
+            0x0D: "Show PAN",
+            0x1F: "Wait for Tip Selection"
         });
 
         this.pinKeyStatusEnum = Object.freeze({
@@ -128,6 +129,8 @@ class PinStatusParser extends ParsePinConfig {
             0x02: "Amount confirmation selected",
             0x03: "Waiting for multi-payment ICC Application selection",
             0x04: "ICC Application selected",
+            0x05: "Waiting for signature capture",
+            0x06: "Signature captured",
             0x07: "Waiting for language selection",
             0x08: "Language selected",
             0x09: "Waiting for credit/debit selection",
@@ -135,7 +138,9 @@ class PinStatusParser extends ParsePinConfig {
             0x0B: "Waiting for Pin Entry for ICC",
             0x0C: "PIN entered for ICC",
             0x0D: "Waiting for Pin Entry for MSR",
-            0x0E: "PIN entered for MSR"
+            0x0E: "PIN entered for MSR",
+            0x0F: "Waiting for tip selection",
+            0x10: "Tip interaction selected"
         });
 
         this.bufferTypes = Object.freeze({
@@ -177,31 +182,14 @@ class PinStatusParser extends ParsePinConfig {
     parseDisplayMessageDone = displayStatus => this.findOperationStatus(displayStatus[2]);
 
     parseEmvCompletion = commandResp => {
-        //TODO:
-        console.log("[!-!-!-!- emvCompletion -!-!-!-!", commandResp);
+        //TODO: More research required
+        this.logDeviceState(`[EMV Completion]: ${this.convertArrayToHexString(commandResp)}`);
         return ({
-
+            emvCompletionResponse: commandResp
         });
     }
 
-    formatSerialNumber = commandResp => {
-        this.requestedSn = {
-            serialNumber: this.findNullTerminatedString(commandResp)
-        }
-        
-        this.getSerialNumber = true;
-        return;
-    }
-
-    formatKsnAndSn = commandResp => {
-        this.requestedKsn = {
-            ksn: this.convertArrayToHexString( commandResp.slice(2, 12) ),
-            serialNumber: this.convertArrayToHexString( commandResp.slice(12, 20) )
-        };
-
-        this.getKsnAvailable = true;
-        return;
-}
+    formatSerialNumber = commandResp => (this.deviceSerialNumber = this.hexToAscii( this.findNullTerminatedString(commandResp) ));
 
     handleBigBlockBegin = bigBlockData => {
         switch(bigBlockData[1]) {
@@ -295,7 +283,7 @@ class PinStatusParser extends ParsePinConfig {
             case 0x02: 
                 return ({
                     ...this.findEmvCardholderStatus(cardholderResp[1]),
-                    amountConfirmed: (cardholderResp[4] === 0x01) ? true : (cardholderResp[4] === 0x02) ? false : "Unknown/Undocumented Amount Confirmed Status"
+                    isAmountConfirmed: (cardholderResp[4] === 0x01) ? true : (cardholderResp[4] === 0x02) ? false : `${unknown}/Undocumented Amount Confirmed Status`
                 });
             case 0x04:
                 return ({
@@ -311,10 +299,11 @@ class PinStatusParser extends ParsePinConfig {
             case 0x20:
                 return ({
                     ...this.findEmvCardholderStatus(cardholderResp[1]),
-                    tlvData: this.tlvParser( cardholderResp.slice(4) ) 
+                    tlvData: this.convertArrayToHexString( cardholderResp.slice(4) ),
+                    parsedTlvData: this.tlvParser( cardholderResp.slice(4) )
                 });
             default:
-                return (typeof cardholderResp[4] === 'undefined') ? this.findEmvCardholderStatus(cardholderResp[1]) 
+                return (typeof(cardholderResp[4]) === 'undefined') ? this.findEmvCardholderStatus(cardholderResp[1]) 
                     : ({
                         ...this.findEmvCardholderStatus(cardholderResp[1]),
                         undocumentedData: this.convertArrayToHexString( cardholderResp.slice(4) )
@@ -337,7 +326,7 @@ class PinStatusParser extends ParsePinConfig {
     });
 
     parseDeviceStateReport = deviceResp => ({
-        deviceState: this.deviceState[ deviceResp[1] ], 
+        deviceState: (this.deviceState[ deviceResp[1] ] || `${unknown}/Undocumented device state id: ${deviceResp[1]}`), 
         sessionState: this.parseSessionState(
             this.decimalToBinary( deviceResp[2] )
         ),
@@ -472,19 +461,24 @@ class PinStatusParser extends ParsePinConfig {
         : this.findOperationStatus(selectionResp[1])
     }
     
-    parseTipCashbackReport = report => {
-        console.log('tip, cashback report', report);
-
-        return (report.length > 2) ? ({
-            ...this.findOperationStatus(report[1]),
-            reportMode: (report[2] === 0x00) ? "Tip" : "Cashback",
-            amount: report.slice(3, 9),
-            tax: report.slice(9, 15),
-            taxRate: report.slice(15, 18),
-            tipOrCashbackAmount: report.slice(18, 24)
+    parseTipCashbackReport = report => (report.length > 2) ? 
+        this.transactionCallback({
+            tipCashbackReport: {
+                    ...this.findOperationStatus(report[1]),
+                    reportMode: (report[2] === 0x00) ? "Tip" : "Cashback",
+                    amount: report.slice(3, 9),
+                    tax: report.slice(9, 15),
+                    taxRate: report.slice(15, 18),
+                    tipOrCashbackAmount: report.slice(18, 24)
+                }
         })
-        : this.findOperationStatus(report[1])
-    }
+        : this.transactionCallback({
+            tipCashbackReport: {
+                ...this.findOperationStatus(report[1])
+            }
+        })
 }
 
 export default PinStatusParser;
+
+

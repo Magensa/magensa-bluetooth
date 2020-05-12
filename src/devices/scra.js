@@ -214,7 +214,6 @@ class Scra extends ScraEmvParser {
         emvOptions,
         authorizedAmount
     }) => {
-        console.log(`timeout: ${timeout} || cardType: ${cardType} || transactionType: ${transactionType} || emvOptions: ${emvOptions} || authorizedAmount: ${authorizedAmount} || cashBack: ${cashBack} || currencyCode: ${currencyCode} || reportVerbosity: ${reportVerbosity}`)
         
         let command = [ 
             ...this.emvCommandBase, 
@@ -222,8 +221,6 @@ class Scra extends ScraEmvParser {
             (cardType) ? this.cardTypes( cardType.toLowerCase() ) : 0x03,
             (typeof(emvOptions) !== 'undefined') ? (this.emvOptions[ emvOptions.toLowerCase() ]) : 0x80
         ];
-
-        console.log('base command: ', command);
 
         command = (authorizedAmount) ? 
             command.concat( this.convertNumToAmount(authorizedAmount) )
@@ -352,7 +349,7 @@ class Scra extends ScraEmvParser {
             battery = respBattery;
             return this.getDeviceSn()
         }).then( respSn => {
-            serialNum = respSn;
+            serialNum = respSn.substring(0, 7);
             return resolve([ battery, serialNum ])
         }).catch(err => reject(err) )
     });

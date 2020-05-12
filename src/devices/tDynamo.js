@@ -4,7 +4,7 @@ import {
     successCode,
     tDynamo
 } from '../utils/constants';
-import { commandNotAccepted } from '../errorHandler/errConstants';
+import { commandNotAccepted, deviceNotOpen } from '../errorHandler/errConstants';
 
 class TDynamo extends Scra {
     constructor(device, callBacks) {
@@ -23,17 +23,7 @@ class TDynamo extends Scra {
     );
 
     requestCardSwipe = () => new Promise( (resolve, reject) => (!this.device.gatt.connected) ?
-        this.getCardServiceBase()
-        .then(() => 
-            this.sendCommandWithResp(this.setHeadAlwaysOn)
-        ).then(setHeadOpenResp => (parseInt(setHeadOpenResp) === 0) ? 
-            resolve({ 
-                code: successCode,
-                message: swipeListening
-            })
-            :
-            reject( this.buildDeviceErr(commandNotAccepted) )
-        ).catch(err => reject(err))
+        reject(this.buildDeviceErr(deviceNotOpen)) 
         :
         this.sendCommandWithResp(this.setHeadAlwaysOn)
         .then(setHeadOpenResp => (parseInt(setHeadOpenResp) === 0) ? 
@@ -41,9 +31,7 @@ class TDynamo extends Scra {
                 code: successCode,
                 message: swipeListening
             })
-            :
-            reject( this.buildDeviceErr(commandNotAccepted)
-            )
+            : reject( this.buildDeviceErr(commandNotAccepted) )
         ).catch(err => reject(err))
     );
 }

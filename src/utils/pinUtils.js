@@ -66,6 +66,13 @@ class PinUtils extends PinValidation {
 
         return parseInt(binaryResult, 2);
     }
+
+    buildN2Format = num => {
+        const stringNum = num.toString();
+        const hexNum = (stringNum.length === 2) ? stringNum : `0${stringNum}`;
+    
+        return parseInt(`0x${hexNum[0]}${hexNum[1]}`, 16);
+    }
 }
 
 export default PinUtils;
