@@ -15,23 +15,6 @@ class DynaProGo extends PinPad {
         this.deviceType = dynaProGo;
     }
 
-    setDisplayMessage = displayOptions => new Promise((resolve, reject) => 
-        (this.device && this.device.gatt.connected) ? 
-            this.buildDisplayCmd( (displayOptions || {}) ).then( cmd => this.sendCommandWithResp(cmd) 
-                ).then(resp => resolve(resp)
-                ).catch(err => reject( this.buildDeviceErr(err) ))
-            : reject( this.buildDeviceErr(deviceNotOpen)) );
-
-    buildDisplayCmd = ({ displayTime, messageId, }) => new Promise( (resolve, reject) => 
-        (typeof(messageId) === 'undefined') ? 
-            reject( missingRequiredFields("messageId") ) 
-            : resolve([
-                0x01, 0x07,
-                (typeof(displayTime) !== 'undefined') ? displayTime : 0x0F,
-                messageId
-            ])
-        );
-
     //#region GetDeviceInfo
     getDeviceInfo = () => new Promise( (resolve, reject) => (!this.device) ?
         reject(this.buildDeviceErr(deviceNotFound)) 

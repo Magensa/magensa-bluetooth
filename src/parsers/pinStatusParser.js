@@ -45,17 +45,6 @@ class PinStatusParser extends ParsePinConfig {
             0x96: "Duplicate KSN/Key"
         });
 
-        this.pinDisplayMessages = Object.freeze({
-            0x00: "Hands Off",
-            0x01: "Approved",
-            0x02: "Declined",
-            0x03: "Cancelled",
-            0x04: "Thank You",
-            0x05: "PIN Invalid",
-            0x06: "Processing",
-            0x07: "Please Wait"
-        });
-
         this.pinCommandIds = Object.freeze({
             0x01: "responseACK",
             0x02: "clearSession",
@@ -74,7 +63,8 @@ class PinStatusParser extends ParsePinConfig {
             0x30: "getKsn",
             0x05: "cancelCommand",
             0x1A: "requestDeviceInfo",
-            0x10: "sendBigBlockData"
+            0x10: "sendBigBlockData",
+            0xA0: "requestTipOrCashback"
         });
 
         this.cardTypesEnum = Object.freeze({
@@ -167,13 +157,6 @@ class PinStatusParser extends ParsePinConfig {
 
         this.arqcTotalLen = 0;
         this.batchTotalLen = 0;
-
-        this.statusEnum = Object.freeze({
-            ok: 0x00,
-            empty: 0x01,
-            error: 0x02,
-            disabled: 0x03
-        });
 
         this.convertStatusToString = Object.freeze({
             0x00: "Ok",
@@ -272,6 +255,7 @@ class PinStatusParser extends ParsePinConfig {
         this.logDeviceState(`[BATCH DATA]: ${dataForBatch}`);
 
         this.transactionHasStarted = false;
+        this.hasTip = false;
 
         const parsedBatchData = this.tlvParser(
             batch.slice(2)
@@ -415,8 +399,9 @@ class PinStatusParser extends ParsePinConfig {
 
     parseCardData = partialNotification => {
         const trackKey = (this.cardDataIds[ partialNotification[1] ] || `trackName${unknown}`);
-
-        if (partialNotification[2] === this.statusEnum.ok) {
+        
+        //0x00 === "Ok"
+        if (partialNotification[2] === 0x00) {
 
             switch(trackKey) {
                 case "track1":
@@ -485,6 +470,20 @@ class PinStatusParser extends ParsePinConfig {
             keyPressed: (deviceKeys[ selectionResp[2] ] || `${unknown}/Undocumented Key`)
         })
         : this.findOperationStatus(selectionResp[1])
+    }
+    
+    parseTipCashbackReport = report => {
+        console.log('tip, cashback report', report);
+
+        return (report.length > 2) ? ({
+            ...this.findOperationStatus(report[1]),
+            reportMode: (report[2] === 0x00) ? "Tip" : "Cashback",
+            amount: report.slice(3, 9),
+            tax: report.slice(9, 15),
+            taxRate: report.slice(15, 18),
+            tipOrCashbackAmount: report.slice(18, 24)
+        })
+        : this.findOperationStatus(report[1])
     }
 }
 

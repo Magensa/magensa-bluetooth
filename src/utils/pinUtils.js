@@ -1,6 +1,6 @@
-import DeviceBase from '../devices/baseClass';
+import PinValidation from './pinValidation';
 
-class PinUtils extends DeviceBase {
+class PinUtils extends PinValidation {
     constructor(device, callBacks) {
         super(device, callBacks);
     }
@@ -57,11 +57,9 @@ class PinUtils extends DeviceBase {
         waitMessage = (typeof waitMessage === 'boolean') ? waitMessage : true;
         verifyPin = (typeof waitMessage === 'boolean') ? waitMessage : true;
         
-        pinBlockFormat = (pinBlockFormat) ? 
-            (pinBlockFormat.toLowerCase() in ['iso0', 'iso3']) ? 
+        pinBlockFormat = (pinBlockFormat && typeof(pinBlockFormat) === 'string') ? 
                 (pinBlockFormat.toLowerCase() === 'iso0') ? '0' : '1' 
-            : '0'
-        : '0';
+            : '0';
 
         const binaryResult = `000${languageSelection}${((waitMessage) ? '1' : '0')}${((verifyPin) ? '1' : '0')}${pinBlockFormat}`;
         this.logDeviceState(`[PinOptionsByte]: binary string representation: ${binaryResult} || byte result: ${parseInt(binaryResult, 2)}`)

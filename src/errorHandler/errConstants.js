@@ -68,10 +68,16 @@ const missingRequiredFields = fieldName => Object.freeze({
     message: `'${fieldName}' is required to call this function.`
 });
 
-const wrongInputTypes = acceptableTypes => Object.freeze({
+const wrongInputTypes = (acceptableTypes, propertyName) => Object.freeze({
     code: 1015,
     name: "IncorrectInputType",
-    message: `Parameter type was not correct, acceptable type(s) are: ${acceptableTypes.join(", ")}`
+    message: `Parameter type for ${propertyName} was not correct, acceptable type(s) are: ${acceptableTypes.join(", ")}`
+});
+
+const wrongInputValues = (acceptableVals, propertyName) => Object.freeze({
+    code: 1015,
+    name: "IncorrectInputValue",
+    message: `Parameter value for ${propertyName} was not correct, acceptable value(s) are: ${acceptableVals.join(", ")}`
 });
 
 export {
@@ -87,5 +93,6 @@ export {
     notFoundObj,
     apiNetworkErr,
     missingRequiredFields,
-    wrongInputTypes
+    wrongInputTypes,
+    wrongInputValues
 }

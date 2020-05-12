@@ -110,15 +110,18 @@ class Utilities {
     }
 
     //Convert number to 6 byte array.
-    convertNumToAmount = num => {
+    convertNumToAmount = (num, optionalLen) => {
+        optionalLen = optionalLen || 12;
+
         let stringNum = num.toString();
         let returnArr = [];
-        while (stringNum.length < 12)
+
+        while (stringNum.length < optionalLen)
             stringNum = "0" + stringNum;
 
-        for (let i = 0; i < stringNum.length; i +=2)
+        for (let i = 0; i < stringNum.length; i += 2)
             returnArr.push(
-                parseInt(stringNum.substr(i, 2), 16)
+                parseInt(stringNum.substring(i, (i + 2)), 16)
             )
     
         return returnArr;
@@ -128,6 +131,8 @@ class Utilities {
         new Promise( resolve => {
             setTimeout(resolve, delay, passedValue);
         });
+
+    byteArrayToNumber = byteArray => parseInt(this.convertArrayToHexString(byteArray), 10);
 }
 
 export default Utilities;

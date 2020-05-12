@@ -29,7 +29,8 @@ class DeviceInterface {
         setDisplayMessage,
         sendUserSelection,
         sendArpc,
-        setDeviceDateTime
+        setDeviceDateTime,
+        requestTipOrCashback
     }) {
         this.openDevice = getCardService;
         this.startTransaction = startTransaction;
@@ -46,6 +47,7 @@ class DeviceInterface {
         this.sendUserSelection = (sendUserSelection) ? sendUserSelection : commandNotUsed();
         this.sendArpcResponse = (sendArpc) ? sendArpc : () => Promise.resolve("Feature Pending Completion");
         this.setDeviceDateTime = (setDeviceDateTime) ? setDeviceDateTime : commandNotUsed();
+        this.requestTipOrCashback = (requestTipOrCashback) ? requestTipOrCashback : commandNotUsed(true);
     }
 };
 

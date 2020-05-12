@@ -155,7 +155,7 @@ class DeviceBase extends ErrorHandler {
             return reject( this.buildDeviceErr(deviceNotOpen) );
 
         if (typeof arpcResp !== 'string' && typeof arpcResp !== 'object')
-            return reject( this.buildDeviceErr( wrongInputTypes(['string', 'array of numbers']) ) );
+            return reject( this.buildDeviceErr( wrongInputTypes(['string', 'array of numbers'], "ARPC") ) );
 
         const dataLen = (typeof arpcResp === 'string') ? (arpcResp.length / 2) : arpcResp.length;
         const inputData = (typeof arpcResp === 'string') ? this.hexToBytes(arpcResp) : arpcResp;
