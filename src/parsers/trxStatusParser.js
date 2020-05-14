@@ -62,7 +62,7 @@ class TrxStatusParser extends ScraSwipeParser {
     }
 
     parseTransactionStatus = notification => {
-        let dataLen = this.readTwoByteLength([
+        const dataLen = this.readTwoByteLength([
             notification[1],
             notification[2]
         ]);
@@ -74,25 +74,15 @@ class TrxStatusParser extends ScraSwipeParser {
 
     
     parseNotifications = notificationSlice => {
-        let newNotificationSlice = notificationSlice.slice(6);
-
-        let notificationLength = this.readTwoByteLength([
+        const newNotificationSlice = notificationSlice.slice(6);
+        const notificationLength = this.readTwoByteLength([
             newNotificationSlice[0],
             newNotificationSlice[1]
         ]);
 
-        let notificationContent = newNotificationSlice.slice(2);
-        
-        //========================================================================================//
-            //notificationContent Format by Index:
-            //0: Event => See this.TrxStatusEnum for codes.
-            //1: Current Operation Time remaining in seconds.
-            //2: Current Transaction Progress Indicator => See this.TrxProgressIndicator for codes.
-            //3 - 4: Final Status => No documentation provided for this (usually is 0000).
-        //========================================================================================//
-
-        let trxStatusCode = notificationContent[0];
-        let trxProgressCode = notificationContent[2];
+        const notificationContent = newNotificationSlice.slice(2);
+        const trxStatusCode = notificationContent[0];
+        const trxProgressCode = notificationContent[2];
 
         return (notificationContent.length === notificationLength) ?  {
             transactionStatus: {
@@ -102,8 +92,7 @@ class TrxStatusParser extends ScraSwipeParser {
                 progressMsg: ( this.TrxProgressIndicator[ trxProgressCode ] || "Progress code message not documented" )
             }
         }
-        :
-        this.throwLenErr();
+        : this.throwLenErr();
     }
 }
 

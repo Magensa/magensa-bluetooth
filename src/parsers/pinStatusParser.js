@@ -1,5 +1,5 @@
 import ParsePinConfig from './pinConfiguration';
-import { unknown } from '../utils/constants';
+import { unknown, unknownUndoc } from '../utils/constants';
 
 class PinStatusParser extends ParsePinConfig {
     constructor(device, callBacks) {
@@ -60,8 +60,6 @@ class PinStatusParser extends ParsePinConfig {
             0x07: "displayMessage",
             0xA2: "emvTransactionStatus",
             0xAB: "requestEmvData",
-            0x30: "getKsn",
-            0x05: "cancelCommand",
             0x1A: "requestDeviceInfo",
             0x10: "sendBigBlockData",
             0xA0: "requestTipOrCashback"
@@ -94,20 +92,6 @@ class PinStatusParser extends ParsePinConfig {
             0x0C: "EMV Transaction",
             0x0D: "Show PAN",
             0x1F: "Wait for Tip Selection"
-        });
-
-        this.pinKeyStatusEnum = Object.freeze({
-            "00": "PIN Key OK",
-            "01": "PIN Key Exhausted",
-            "10": "No PIN Key",
-            "11": "PIN Key Not Bound"
-        });
-
-        this.msrKeyStatusEnum = Object.freeze({
-            "00": "MSR Key OK",
-            "01": "MSR Key Exhausted",
-            "10": "No MSR Key",
-            "11": "MSR Key Not Bound"
         });
 
         this.cardDataIds = Object.freeze({
@@ -172,11 +156,11 @@ class PinStatusParser extends ParsePinConfig {
     }
 
     findEmvCardholderStatus = cardHolderStatusByte =>  ({
-        emvCardholderStatus: (this.cardholderStatusIds[ cardHolderStatusByte ] || `${unknown}/Undocumented Cardholder Interaction Status ID: ${cardHolderStatusByte}`)
+        emvCardholderStatus: (this.cardholderStatusIds[ cardHolderStatusByte ] || `${unknownUndoc} Cardholder Interaction Status ID: ${cardHolderStatusByte}`)
     });
 
     findOperationStatus = statusId => ({
-        operationStatus: (this.operationStatus[ statusId ] || `${unknown} Operation Status`)
+        operationStatus: (this.operationStatus[ statusId ] || `${unknownUndoc} Operation Status`)
     });
 
     parseDisplayMessageDone = displayStatus => this.findOperationStatus(displayStatus[2]);
@@ -243,7 +227,6 @@ class PinStatusParser extends ParsePinConfig {
         this.logDeviceState(`[BATCH DATA]: ${dataForBatch}`);
 
         this.transactionHasStarted = false;
-        this.hasTip = false;
 
         const parsedBatchData = this.tlvParser(
             batch.slice(2)
@@ -283,7 +266,7 @@ class PinStatusParser extends ParsePinConfig {
             case 0x02: 
                 return ({
                     ...this.findEmvCardholderStatus(cardholderResp[1]),
-                    isAmountConfirmed: (cardholderResp[4] === 0x01) ? true : (cardholderResp[4] === 0x02) ? false : `${unknown}/Undocumented Amount Confirmed Status`
+                    isAmountConfirmed: (cardholderResp[4] === 0x01) ? true : (cardholderResp[4] === 0x02) ? false : `${unknownUndoc} Amount Confirmed Status`
                 });
             case 0x04:
                 return ({
@@ -294,7 +277,7 @@ class PinStatusParser extends ParsePinConfig {
                 return ({
                     ...this.findEmvCardholderStatus(cardholderResp[1]),
                     methodSelected: (cardholderResp[4] === 0x01) ? "Credit" : 
-                    (cardholderResp[4] === 0x02) ? "Debit" : `${unknown}/Undocumented payment method selected`
+                    (cardholderResp[4] === 0x02) ? "Debit" : `${unknownUndoc} payment method selected`
                 });
             case 0x20:
                 return ({
@@ -326,7 +309,7 @@ class PinStatusParser extends ParsePinConfig {
     });
 
     parseDeviceStateReport = deviceResp => ({
-        deviceState: (this.deviceState[ deviceResp[1] ] || `${unknown}/Undocumented device state id: ${deviceResp[1]}`), 
+        deviceState: (this.deviceState[ deviceResp[1] ] || `${unknownUndoc} device state id: ${deviceResp[1]}`), 
         sessionState: this.parseSessionState(
             this.decimalToBinary( deviceResp[2] )
         ),
@@ -362,9 +345,16 @@ class PinStatusParser extends ParsePinConfig {
         deviceCertExists: this.stringNumToBool( binaryString[7] )
     });
 
+    keyStatusEnum = pinOrMsr => Object.freeze({
+        "00": `${pinOrMsr} Key OK`,
+        "01": `${pinOrMsr} Key Exhausted`,
+        "10": `No ${pinOrMsr} Key`,
+        "11": `${pinOrMsr} Key Not Bound`
+    });
+
     parseDeviceStatus = binaryString => (binaryString !== "00000000") ? ({
-        pinKeyStatus: this.pinKeyStatusEnum[ binaryString.slice(6) ],
-        msrKeyStatus: this.msrKeyStatusEnum[ binaryString.slice(4, 6) ],
+        pinKeyStatus: this.keyStatusEnum("PIN")[ binaryString.slice(6) ],
+        msrKeyStatus: this.keyStatusEnum("MSR")[ binaryString.slice(4, 6) ],
         tamperDetected: this.stringNumToBool( binaryString[3] ),
         isAuthenticated: this.stringNumToBool( binaryString[1] ),
         deviceErrorDetected: this.stringNumToBool( binaryString[0] )
@@ -456,7 +446,7 @@ class PinStatusParser extends ParsePinConfig {
 
         return (selectionResp.length > 2) ? ({
             ...this.findOperationStatus(selectionResp[1]),
-            keyPressed: (deviceKeys[ selectionResp[2] ] || `${unknown}/Undocumented Key`)
+            keyPressed: (deviceKeys[ selectionResp[2] ] || `${unknownUndoc} Key`)
         })
         : this.findOperationStatus(selectionResp[1])
     }
@@ -480,5 +470,3 @@ class PinStatusParser extends ParsePinConfig {
 }
 
 export default PinStatusParser;
-
-

@@ -19,8 +19,6 @@ class ScraSwipeParser extends DeviceBase {
         ];
 
         this.offset = 3;
-
-        //Moved Status Enums to DeviceBase for inheritance.
     }
 
     trackIndices = offset => Object.freeze({
@@ -67,7 +65,7 @@ class ScraSwipeParser extends DeviceBase {
     });
 
     parseHidData = data => {
-        let trackPositions = this.trackIndices(this.offset);
+        const trackPositions = this.trackIndices(this.offset);
         let trackInfo = {};
     
         //Iterate through track names and format in key value pair format.
@@ -82,9 +80,10 @@ class ScraSwipeParser extends DeviceBase {
                     0, data[trackPositions[`${dataProp}Len`]]
                 )
             }
-
-            //Special formatting is needed for track2Masked, tracks with a "DecodeStatus" field, Device Serial Number, and tracks that have a "masked" suffix.
-            //The below ternary returns the proper format, depending on track name, and performs much better than if/elseif/else statement.
+            /*
+                Special formatting is needed for track2Masked, tracks with a "DecodeStatus" field, Device Serial Number, and tracks that have a "masked" suffix.
+                The below ternary returns the proper format, depending on track name, and performs much better than if/elseif/else statement.
+            */
             trackInfo = (dataProp === 'track2Masked') ? this.formatTrack2Masked( trackInfo, dataProp, this.bufferToUtf8(trackData) ) : 
                 (trackPositions.hasOwnProperty(`${dataProp}DecodeStatus`)) ? this.formatTrackWithDecode( trackInfo, dataProp, data[trackPositions[`${dataProp}DecodeStatus`]], this.convertArrayToHexString(trackData) ) : 
                     (dataProp === 'serialNumber') ? this.formatSerialNumber(trackInfo, trackData) : 

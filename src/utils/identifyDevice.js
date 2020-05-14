@@ -34,7 +34,6 @@ const formatTypeString = deviceTypeStr => {
 export const findDeviceTypeString = (nameStr, typeStr) => {
     if (typeStr) {
         const formattedStr = formatTypeString(typeStr);
-        console.log("[!!]: ", formattedStr);
 
         if (formattedStr) {
             return formattedStr;

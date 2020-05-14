@@ -4,6 +4,7 @@ import {
     successCode,
     eDynamo
 } from '../utils/constants';
+import { deviceNotOpen } from '../errorHandler/errConstants';
 
 class EDynamo extends Scra {
     constructor(device, callBacks) {
@@ -18,19 +19,12 @@ class EDynamo extends Scra {
         ).catch( err => reject(this.buildDeviceErr(err)) )
     );
 
-    requestCardSwipe = () => new Promise( (resolve, reject) => 
-        (!this.device.gatt.connected) ? 
-            this.getCardServiceBase(1)
-            .then( () => 
-                resolve({ 
-                    code: successCode,
-                    message: swipeListening
-                }) 
-            ).catch(err => reject(this.buildDeviceErr(err) ))
+    requestCardSwipe = () => new Promise( (resolve, reject) => (!this.device.gatt.connected) ? 
+        reject(this.buildDeviceErr(deviceNotOpen))
         : resolve({
             code: successCode,
             message: swipeListening
-        }) 
+        })
     );
 }
 

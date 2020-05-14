@@ -1,5 +1,4 @@
 import SwipeParser from './swipeParser';
-import { dynaProGo } from '../utils/constants';
 
 class EmvParser extends SwipeParser {
     constructor() {
@@ -34,7 +33,7 @@ class EmvParser extends SwipeParser {
             0x20: "Manual Selction Cancelled by Cardholder",
             0x21: "Waiting for Card Cancelled by Host",
             0x22: "Waiting for Card Timeout",
-            0x23: "Cancelled by Card Swipe (MSR) [SCRA] || Waiting for Card Cancelled by Cardholder [PIN]",
+            0x23: "[SCRA]: Cancelled by Card Swipe (MSR) ||[PIN]: Waiting for Card Cancelled by Cardholder ",
             0x24: "Waiting for Card ICC Seated",
             0x25: "Waiting for Card MSR Swiped",
             0xFF: "Unknown Transaction Status",
@@ -42,7 +41,7 @@ class EmvParser extends SwipeParser {
     }
 
     tlvParser = (data, isMsr) => {
-        let dataLength = data.length;
+        const dataLength = data.length;
         let result = [];
         let iTLV = 0;
         let iTag;

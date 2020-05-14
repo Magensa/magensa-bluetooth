@@ -1,18 +1,18 @@
-import ScraEmvParser from '../parsers/scraEmvParser';
+import ScraCmdBuilder from '../commandBuilders/scraCmdBuilder';
 import { 
     commandNotSent,
     responseNotReceived,
     deviceNotFound,
-    deviceNotOpen,
-    gattServerNotConnected
+    deviceNotOpen
 } from '../errorHandler/errConstants';
 import { 
     closeSuccess, 
     successCode, 
-    openSuccess 
+    openSuccess,
+    unknownUndoc
 } from '../utils/constants';
 
-class Scra extends ScraEmvParser {
+class Scra extends ScraCmdBuilder {
     constructor(device, callBacks) {
         super(device, callBacks);
         this.transactionCallback = callBacks.transactionCallback || callBacks;
@@ -34,24 +34,18 @@ class Scra extends ScraEmvParser {
         this.dataReadyId = "0508e6f8-ad82-898f-f843-e3410cb60202";
         this.dataReadStatusId = "0508e6f8-ad82-898f-f843-e3410cb60203";
 
-        this.emvOptions = Object.freeze({
-            'normal': 0x00,
-            'bypasspin': 0x01,
-            'forceonline': 0x02,
-            'quickchip': 0x80,
-            'pinbypassquickchip': 0x81,
-            'forceonlinequickchip': 0x82
-        });
-
         this.resultCodes = Object.freeze({
             '0000': "Success",
             '038B': "Invalid Selection Status",
             '038C': 'Invalid Selection Result',
             '038D': "Failure, no transaction currently in progress",
-            '038F': "Failure, transaction already in progress"
+            '038F': "Failure, transaction already in progress",
+            '0390': 'Device has no keys',
+            '0391': 'Invalid device serial number',
+            '0392': 'Invalid type of MAC field',
+            '0396': 'Invalid date/time data',
+            '0397': 'Invalid MAC'
         });
-
-        this.emvCommandBase = [0x49, 0x19, 0x00, 0x00, 0x03, 0x00, 0x00, 0x13];
 
         this.cancelEmvCommand = Uint8Array.of(
             0x49, 0x06, 0x00, 0x00, 0x03, 0x04, 0x00, 0x00
@@ -73,32 +67,27 @@ class Scra extends ScraEmvParser {
                 characteristic.addEventListener('characteristicvaluechanged', this.cardDataHandler);
                 
                 this.cardDataListener = characteristic;
-                return Promise.resolve();
-            }).then( 
-                () => this.cardService.getCharacteristic(this.commandCharId)
-            ).then(characteristic => {
+                return this.cardService.getCharacteristic(this.commandCharId)
+            }).then(characteristic => {
                 this.commandCharacteristic = characteristic;
-
-                //If this library is being used in a web application
-                //Make sure the device disconnects properly upon window unload.
+                /*
+                    If this library is being used in a web application
+                    Make sure the device disconnects properly upon window unload.
+                */
                 if (window) {
                     window.removeEventListener('beforeunload', this.onDestroyHandler);
                     window.addEventListener('beforeunload', this.onDestroyHandler);
                 }
 
-                return Promise.resolve();
-            }).then(
-                () => this.cardService.getCharacteristic(this.dataReadyId)
-            ).then( characteristic => characteristic.startNotifications()
+                return this.cardService.getCharacteristic(this.dataReadyId)
+            }).then( characteristic => characteristic.startNotifications()
             ).then( characteristic => {
                 characteristic.removeEventListener('characteristicvaluechanged', this.dataReadyHandler);
                 characteristic.addEventListener('characteristicvaluechanged', this.dataReadyHandler);
 
                 this.dataReadyCharacteristic = characteristic;
-                return Promise.resolve();
-            }).then(
-                () => this.cardService.getCharacteristic(this.dataReadStatusId)
-            ).then( characteristic => {
+                return this.cardService.getCharacteristic(this.dataReadStatusId)
+            }).then( characteristic => {
                 this.dataReadStatusCharacteristic = characteristic;
                 this.logDeviceState(`[GATT NOTIFICATIONS]: Success! Cached characteristics, started notifications, and attached listeners. || ${new Date()}`)
                 return resolve({
@@ -112,7 +101,7 @@ class Scra extends ScraEmvParser {
         let eventValue = event.target.value;
         let formattedEventValue = this.readByteArray(eventValue);
 
-        this.logDeviceState(`dataReady listener: ${this.convertArrayToHexString(formattedEventValue)}`);
+        this.logDeviceState(`[Data Ready Listener]: ${this.convertArrayToHexString(formattedEventValue)}`);
 
         if (this.commandSent) {
             this.commandRespAvailable = true;
@@ -138,14 +127,13 @@ class Scra extends ScraEmvParser {
 
             if (this.checkNotificationLength()) {
                 this.initialNotification = (this.rleFormats[ this.rawData[0][0] ]) ? this.decodeRLE(this.rawData[0]) : this.rawData[0];
-                this.logDeviceState(this.rawData);
                 
                 //Check if swipe data
                 if (this.initialNotification[0] === 0 || this.initialNotification[0] === 1) {
                     return this.returnToUser(this.transactionCallback)( this.parseHidData( this.buildInitialDataArray(true) ) );
                 }
                 else {
-                    let notificationId = this.convertArrayToHexString([
+                    const notificationId = this.convertArrayToHexString([
                         this.initialNotification[7],
                         this.initialNotification[8]
                     ]);
@@ -173,7 +161,7 @@ class Scra extends ScraEmvParser {
                 this.logDeviceState("==User Selection Request==");
                 this.logDeviceState(this.convertArrayToHexString(builtNotification));
                 //TODO: Further investigation warranted for this circumstance.
-                return this.returnToUser(this.transactionStatusCallback)( this.parseUserSelectionRequest(buildNotification) );
+                return this.returnToUser(this.userSelectionCallback)( this.parseUserSelectionRequest(buildNotification) );
                 break;
             case "0303":
                 this.logDeviceState("==ARQC Message==");
@@ -189,14 +177,12 @@ class Scra extends ScraEmvParser {
 
     startTransaction = emvOptions => new Promise( (resolve, reject) => (!this.device.gatt.connected) ? 
         reject( this.buildDeviceErr(deviceNotOpen) )
-        :
-        this.sendCommandWithResp(
+        : this.sendCommandWithResp(
             this.buildEmvCommand( emvOptions || {} )
         ).then( value => {
-            let commandResp = this.parseEmvCommandResponse(value);
-            this.logDeviceState(commandResp);
+            const commandResp = this.parseEmvCommandResponse(value);
 
-        return (commandResp.code === 0) ? resolve(commandResp) :
+            return (commandResp.code === 0) ? resolve(commandResp) :
                 (commandResp.code !== 918) ? reject(this.buildDeviceErr(commandResp)) :
                     this.setDeviceDateTime()
                     .then( () => this.delayPromise(500) )
@@ -204,51 +190,8 @@ class Scra extends ScraEmvParser {
         }).catch(err => reject( this.buildDeviceErr(err)) )
     ); 
 
-    buildEmvCommand = ({ 
-        timeout, 
-        cardType, 
-        transactionType, 
-        cashBack, 
-        currencyCode, 
-        reportVerbosity,
-        emvOptions,
-        authorizedAmount
-    }) => {
-        
-        let command = [ 
-            ...this.emvCommandBase, 
-            timeout || 0x3C, 
-            (cardType) ? this.cardTypes( cardType.toLowerCase() ) : 0x03,
-            (typeof(emvOptions) !== 'undefined') ? (this.emvOptions[ emvOptions.toLowerCase() ]) : 0x80
-        ];
-
-        command = (authorizedAmount) ? 
-            command.concat( this.convertNumToAmount(authorizedAmount) )
-            : command.concat( [0x00, 0x00, 0x00, 0x00, 0x01, 0x00] );
-
-        command = (transactionType) ? 
-            command.concat(this.transactionTypes[ transactionType.toLowerCase() ] || 0x00) 
-            : command.concat(0x00)
-        
-        command = (cashBack) ? command.concat( this.convertNumToAmount(cashBack) )
-            : command.concat( this.newArrayPartial(0x00, 6) );
-
-        command = (currencyCode) ? command.concat( this.currencyCode[ currencyCode.toLowerCase() ] ||  this.currencyCode['default'] )
-            : command.concat( [0x08, 0x40] );
-
-        command.push(
-            (reportVerbosity) ? ( this.statusVerbosity[ reportVerbosity.toLowerCase() ] || 0x00 ) : 0x01
-        );
-        
-        return command;
-    }
-
     readCommandValue = () => new Promise (resolve => this.commandCharacteristic.readValue()
         .then( value => resolve( this.readByteArray(value) )));
-
-    readBatteryLevel = () => new Promise( resolve => 
-        this.sendCommandWithResp([0x45, 0x00]).then(value => resolve( value[2] ))
-    );
 
     checkNotificationLength = () => Math.max(...Object.keys(this.rawData)) === this.maxBlockId - 1;
    
@@ -279,59 +222,17 @@ class Scra extends ScraEmvParser {
         return specifiedCallback(returnObj);
     }
 
-    buildDateTimeCommand = specificTime => {
-        let dateTimeCommand = [0x49, 0x22, 0x00, 0x00, 0x03, 0x0C, 0x00, 0x1C];
-        dateTimeCommand = dateTimeCommand.concat( this.newArrayPartial(0x00, 17) );
-        //Format Date segment below
-        const current = (specificTime instanceof Date) ? specificTime : new Date();
-
-        //Month (zero based index, so add 1).
-        dateTimeCommand.push( 
-            this.castDecToHex( current.getMonth() + 1)
-        );
-
-        dateTimeCommand.push(
-            this.castDecToHex( current.getDate() )
-        );
-
-        dateTimeCommand.push(
-            this.castDecToHex( current.getHours() )
-        );
-
-        dateTimeCommand.push(
-            this.castDecToHex( current.getMinutes() )
-        );
-
-        dateTimeCommand.push(
-            this.castDecToHex( current.getSeconds() )
-        );
-
-        //Currently unused offset.  0x00 - 0x06 is valid - but is not examined.
-        dateTimeCommand.push(0x00);
-
-        //Year is based upon 2008 === 0x00.
-        dateTimeCommand.push(
-            this.castDecToHex( current.getFullYear() - 2008 )
-        )
-
-        //MAC - for all devices except two exceptions (see documentation) this can be padded with zeros.
-        dateTimeCommand = dateTimeCommand.concat( this.newArrayPartial(0x00, 4) );
-        
-        return dateTimeCommand;
-    }
-
-    setDeviceDateTime = specificTime => new Promise((resolve, reject) => 
-        this.sendCommandWithResp(
+    setDeviceDateTime = specificTime => new Promise((resolve, reject) => (!this.device.gatt.connected) ?
+        reject(deviceNotOpen)
+        : this.sendCommandWithResp(
             this.buildDateTimeCommand(specificTime)
-        ).then(resp => resolve(resp)
-        ).catch(err => reject(this.buildDeviceErr(err)))
+        ).then(resp => resolve({
+                dateTimeResult: this.resultCodes[ this.convertArrayToHexString(resp.slice(4, 6)) ] || `${unknownUndoc} result code`
+        })).catch(err => reject(this.buildDeviceErr(err)))
     );
 
-    getKsn = () => new Promise( (resolve, reject) => 
-        (!this.device.gatt.connected) ? reject( this.buildDeviceErr(gattServerNotConnected)) 
-        : this.sendCommandWithResp([0x09, 0x00])
-        .then( resp => this.convertArrayToHexString(resp.slice(2)) )
-        .then(formattedValue => resolve(formattedValue))
+    readBatteryLevel = () => new Promise( resolve => 
+        this.sendCommandWithResp([0x45, 0x00]).then(value => resolve( value[2] ))
     );
 
     getDeviceSn = () => new Promise(resolve => 
@@ -382,8 +283,6 @@ class Scra extends ScraEmvParser {
             }).catch(err => reject( this.buildDeviceErr(err) ))
     )
 
-    buildArpcCommand = (len, data) => ([0x49, (len + 6), 0x00, 0x00, 0x03, 0x03, 0x00, len, ...data ]);
-
     sendArpc = arpcResp => new Promise((resolve, reject) => this.sendArpcBase(arpcResp)
         .then(arpcCmd => this.sendCommandWithResp(arpcCmd))
         .then(resp => {
@@ -422,10 +321,10 @@ class Scra extends ScraEmvParser {
 
     cancelTransaction = () => new Promise( (resolve, reject) => (!this.commandCharacteristic) ? 
         reject( this.buildDeviceErr(commandNotSent))
-        :
-        this.commandCharacteristic.writeValue(this.cancelEmvCommand)
-        .then(() => resolve())
-        .catch(err => reject(this.buildDeviceErr(err)))
+        : this.sendCommandWithResp(this.cancelEmvCommand)
+        .then(resp => resolve({
+            cancelResponse: (this.resultCodes[ this.convertArrayToHexString(resp.slice(4, 6)) ] || `${unknownUndoc} result code`)
+        })).catch(err => reject(this.buildDeviceErr(err)))
     );
 
     closeDevice = () => new Promise( (resolve, reject) => 
@@ -433,8 +332,7 @@ class Scra extends ScraEmvParser {
             code: successCode,
             message: closeSuccess
         }) 
-        :
-        this.ceaseNotifications().then(() => {
+        : this.ceaseNotifications().then(() => {
             this.clearGattCache();
             return this.disconnect();
         }).then(() => resolve({

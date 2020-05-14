@@ -10,10 +10,11 @@ const dpMini = "DynaPro Mini";
 
 const configStr = "Configuration";
 const unknown = "Unknown";
+const unknownUndoc = `${unknown}/Undocumented`;
 const ascii = "ASCII";
 
 const noSessionToClear = Object.freeze({
-    code: 0,
+    code: successCode,
     message: "Success, there was no session to clear"
 });
 
@@ -61,5 +62,6 @@ export {
     successfulClose,
     configStr,
     unknown,
+    unknownUndoc,
     ascii
 }

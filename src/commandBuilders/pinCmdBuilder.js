@@ -1,4 +1,5 @@
 import PinStatusParser from '../parsers/pinStatusParser';
+import { missingRequiredFields } from '../errorHandler/errConstants';
 
 class PinCmdBuilder extends PinStatusParser {
     constructor(device, callBacks) {
@@ -43,8 +44,6 @@ class PinCmdBuilder extends PinStatusParser {
         trxCategoryCode
     }) => new Promise((resolve, reject) => {
         this.isQuickChipTransaction = (isQuickChip === false) ? false : true;
-        //TODO: Re-examine scope. May be able to limit this flag to this function.
-        this.hasTip = (this.hasTip || (typeof(tipAmount) !== 'undefined'));
         const validator = this.validateAmount(reject);
 
         let command = [ 
@@ -92,8 +91,9 @@ class PinCmdBuilder extends PinStatusParser {
 
         command.push( (this.isQuickChipTransaction) ? 0x01 : 0x00 );
 
-        command.push( ((this.hasTip) ? 0x01 : (typeof(cashBack) !== 'undefined') ? 0x02 : 0x00) );
-
+        command.push( 
+            ((typeof(tipAmount) !== 'undefined') ? 0x01 : (typeof(cashBack) !== 'undefined') ? 0x02 : 0x00) 
+        );
 
         const taxAmnt = validator(taxAmount, 'taxAmount', this.newArrayPartial(0x00, 6));
         if (typeof(taxAmnt) === 'undefined')
@@ -236,7 +236,7 @@ class PinCmdBuilder extends PinStatusParser {
         }).catch(err => reject(err))
     });
 
-    buildDisplayCmd = ({ displayTime, messageId, }) => new Promise( (resolve, reject) => 
+    buildDisplayCmd = ({ displayTime, messageId }) => new Promise( (resolve, reject) => 
         (typeof(messageId) === 'undefined') ? 
             reject( missingRequiredFields("messageId") ) 
             : resolve([

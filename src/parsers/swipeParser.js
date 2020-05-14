@@ -9,7 +9,7 @@ class SwipeParser extends Utilities {
         let stringData = (typeof rawData === 'object') ? this.bufferToUtf8(rawData.slice(4)) : rawData;
     
         if (stringData.indexOf(';') !== -1) {
-            let formattedString = this.splitExpPAN(stringData);
+            const formattedString = this.splitExpPAN(stringData);
     
             return {
                 maskedPAN: formattedString[0],
@@ -28,12 +28,12 @@ class SwipeParser extends Utilities {
 
     splitExpPAN = stringData => {
         if (stringData.length > 3) {
-            let expPAN = stringData.replace(';','').replace('?','').split('=');
-            let exp = expPAN[1].slice(0, 4);
-            let serviceCode = expPAN[1].slice(4, 7);
-            let formattedExp = exp.slice(-2) + '/' + exp.slice(0, 2);
-            let maskedPAN = expPAN[0];
-            let lastFour = expPAN[0].slice(-4);
+            const expPAN = stringData.replace(';','').replace('?','').split('=');
+            const exp = expPAN[1].slice(0, 4);
+            const serviceCode = expPAN[1].slice(4, 7);
+            const formattedExp = exp.slice(-2) + '/' + exp.slice(0, 2);
+            const maskedPAN = expPAN[0];
+            const lastFour = expPAN[0].slice(-4);
 
             return [maskedPAN, lastFour, formattedExp, serviceCode]
         }

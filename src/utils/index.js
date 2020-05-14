@@ -10,14 +10,12 @@ class Utilities {
 
      };
 
-     logDeviceState = logInfo => {
-        let logEvent = new CustomEvent("deviceLog", { 
+     logDeviceState = logInfo => window.dispatchEvent(
+        new CustomEvent("deviceLog", { 
             bubbles: true,
             detail: logInfo 
-        });
-
-        window.dispatchEvent(logEvent);
-    }
+        })
+    );
 
     convertArrayToHexString = array =>
         Array.from(array, byte =>

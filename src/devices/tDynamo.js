@@ -24,8 +24,7 @@ class TDynamo extends Scra {
 
     requestCardSwipe = () => new Promise( (resolve, reject) => (!this.device.gatt.connected) ?
         reject(this.buildDeviceErr(deviceNotOpen)) 
-        :
-        this.sendCommandWithResp(this.setHeadAlwaysOn)
+        : this.sendCommandWithResp(this.setHeadAlwaysOn)
         .then(setHeadOpenResp => (parseInt(setHeadOpenResp) === 0) ? 
             resolve({ 
                 code: successCode,

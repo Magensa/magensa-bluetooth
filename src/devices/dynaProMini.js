@@ -1,6 +1,5 @@
 import PinPad from './pinPad';
-import { deviceNotIdle, dpMini } from '../utils/constants';
-import { responseNotReceived, deviceNotFound } from '../errorHandler/errConstants';
+import {  dpMini } from '../utils/constants';
 
 class DpMini extends PinPad {
     constructor(device, callBacks) {

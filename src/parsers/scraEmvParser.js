@@ -34,8 +34,7 @@ class ScraEmvParser extends TrxStatusParser {
                 true
             )
         })
-        :
-        ({
+        : ({
             signatureRequired: (emvData[11] === 0x80) ? "CBC-MAC checked in ARQC online response" : (emvData[11] === 0x01),
             batchData: this.convertArrayToHexString( emvData.slice(11) ),
             batchDataParsed: this.tlvParser( emvData.slice(14), true )

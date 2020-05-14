@@ -25,12 +25,6 @@ class DeviceBase extends ErrorHandler {
             "0508e6f8-ad82-898f-f843-e3410cb60101"
         ];
 
-        this.statusVerbosity = Object.freeze({
-            "minimum": 0x00,
-            'medium': 0x01,
-            'verbose': 0x02
-        });
-
         this.currencyCode = Object.freeze({
             'dollar': [0x08, 0x40],
             'euro': [0x09, 0x78],
@@ -73,13 +67,10 @@ class DeviceBase extends ErrorHandler {
     });
 
     disconnect = () => new Promise( resolve =>  {
-        if (!this.device.gatt.connected) {
-            return resolve( successfulClose )
-        }
-        else {
-            this.device.gatt.disconnect()
-            return resolve( successfulClose )
-        }
+        if (this.device.gatt.connected)
+            this.device.gatt.disconnect();
+            
+        return resolve( successfulClose );
     });
 
     cacheCardServiceBase = serviceIndex => new Promise( (resolve, reject) => {
@@ -88,8 +79,7 @@ class DeviceBase extends ErrorHandler {
 
         return (!this.gattServer) ? 
             reject( this.buildDeviceErr(gattServerNotConnected) )
-            :
-            this.findPrimaryService(serviceIndex)
+            : this.findPrimaryService(serviceIndex)
             .then(service => resolve(service))
             .catch(err => reject(err))
     });
@@ -106,7 +96,6 @@ class DeviceBase extends ErrorHandler {
         }).catch( err => {
             if (err.code === notFoundObj.errorCode && err.name === notFoundObj.errorName) {
                 if (typeof( this.deviceUUIDs[serviceIndex + 1] !== "undefined" )) {
-
                     this.logDeviceState(
                         `[ERROR]: Failed to connect. UUID: ${this.deviceUUIDs[ serviceIndex ]} is not valid for this device. Trying again with UUID: ${this.deviceUUIDs[ serviceIndex + 1 ]} || ${new Date()}`
                     );
@@ -116,7 +105,6 @@ class DeviceBase extends ErrorHandler {
             }
             else {
                 this.logDeviceState(`[ERROR]: Failed to retrieve Card Service - UUID: ${this.deviceUUIDs[ serviceIndex ]} is not valid for this device. || ${new Date()}`);
-            
                 return reject( err );
             }
         })
@@ -124,7 +112,7 @@ class DeviceBase extends ErrorHandler {
 
     connectAndCache = optionalIndex => new Promise( (resolve, reject) => {
 
-        let tryToConnect = tryCount => new Promise( (innerResolve, innerReject) => (tryCount < 4) ? 
+        const tryToConnect = tryCount => new Promise( (innerResolve, innerReject) => (tryCount < 4) ? 
             this.connect()
                 .then( () => this.cacheCardServiceBase(optionalIndex) )
                 .then( cacheServiceResp => innerResolve( cacheServiceResp )
@@ -172,7 +160,7 @@ class DeviceBase extends ErrorHandler {
 
     waitForDeviceResponse = maxTries => new Promise( resolve => {
 
-        let waitForResponse = tryNumber => 
+        const waitForResponse = tryNumber => 
             (tryNumber < maxTries) ? 
                 (this.commandRespAvailable) ? resolve( true ) : setTimeout(() => waitForResponse(tryNumber + 1), 200)
             : resolve( false );

@@ -1,5 +1,4 @@
 import DeviceBase from '../devices/baseClass';
-
 import {
     missingRequiredFields,
     wrongInputTypes,

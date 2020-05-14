@@ -1,5 +1,5 @@
 import PinUtils from '../utils/pinUtils';
-import { configStr, unknown, ascii } from '../utils/constants';
+import { configStr, unknown, ascii, unknownUndoc } from '../utils/constants';
 
 class ParsePinConfig extends PinUtils {
     constructor(device, callBacks) {
@@ -39,7 +39,7 @@ class ParsePinConfig extends PinUtils {
         maskCharacter: this.findMaskCharacter(configArr[5]),
         leadingUnmaskedLength: parseInt(this.decimalToBinary( configArr[6]).slice(4), 2),
         trailingUnmaskedLength: parseInt(this.decimalToBinary( configArr[6]).slice(0, 4), 2),
-        emvL2IcsConfig: (this.emvL2ConfigOptions[ this.decimalToBinary(configArr[7]).slice(0, 4) ] || `${unknown}/Undocumented EMV L2 ICS ${configStr}`),
+        emvL2IcsConfig: (this.emvL2ConfigOptions[ this.decimalToBinary(configArr[7]).slice(0, 4) ] || `${unknownUndoc} EMV L2 ICS ${configStr}`),
         ...this.contactlessConfig( configArr[8] )
     });
 
