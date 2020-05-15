@@ -57,7 +57,7 @@ class PinUtils extends PinValidation {
         waitMessage = (typeof waitMessage === 'boolean') ? waitMessage : true;
         verifyPin = (typeof waitMessage === 'boolean') ? waitMessage : true;
         
-        pinBlockFormat = (pinBlockFormat && typeof(pinBlockFormat) === 'string') ? 
+        pinBlockFormat = (typeof(pinBlockFormat) === 'string') ? 
                 (pinBlockFormat.toLowerCase() === 'iso0') ? '0' : '1' 
             : '0';
 

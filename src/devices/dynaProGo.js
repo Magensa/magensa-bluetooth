@@ -7,6 +7,14 @@ class DynaProGo extends PinPad {
 
         this.deviceType = dynaProGo;
     }
+
+    requestTipOrCashback = tipCashbackOptions => new Promise((resolve, reject) => (!this.device.gatt.connected) ?
+        reject(this.buildDeviceErr(deviceNotOpen))
+        : this.buildTipOrCashbackCmd( (tipCashbackOptions || {} ))
+            .then(tipCashbackCmd => this.sendCommandWithResp(tipCashbackCmd)
+            ).then(resp => resolve(resp)
+            ).catch(err => reject(this.buildDeviceErr(err)))
+    );
 }
 
 export default DynaProGo;

@@ -47,7 +47,7 @@ class DeviceInterface {
         this.sendUserSelection = (sendUserSelection) ? sendUserSelection : commandNotUsed();
         this.sendArpcResponse = (sendArpc) ? sendArpc : () => Promise.resolve("Feature Pending Completion");
         this.setDeviceDateTime = (setDeviceDateTime) ? setDeviceDateTime : commandNotUsed();
-        this.requestTipOrCashback = (requestTipOrCashback) ? requestTipOrCashback : commandNotUsed(true);
+        this.requestTipOrCashback = (requestTipOrCashback) ? requestTipOrCashback : () => Promise.resolve("This device does not use this command");
     }
 };
 

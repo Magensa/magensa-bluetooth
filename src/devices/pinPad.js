@@ -32,14 +32,6 @@ class PinPad extends PinCmdBuilder {
         this.isQuickChipTransaction = true;
         this.deviceSerialNumber = null;
 
-        this.displayTypes = Object.freeze({
-            'swipeidlealternate': 0x00,
-            'swipecard': 0x01,
-            'pleaseswipe': 0x02,
-            'pleaseswipeagain': 0x03,
-            'chiperroruseswipe': 0x04
-        });
-
         this.reportIds = Object.freeze({
             responseAck: 0x01,
             endSession: 0x02,
@@ -174,7 +166,7 @@ class PinPad extends PinCmdBuilder {
                     return resolve( this.parseDeviceConfiguration(commandResp) )
                 case this.reportIds.pinResponse:
                     return resolve( 
-                        this.transactionCallback( this.parsePinResponse(pinResp) )
+                        this.transactionCallback( this.parsePinResponse(commandResp) )
                     );
                 case this.reportIds.selectionResponse:
                     return resolve( this.parseCardholderResponse(commandResp) )
@@ -215,7 +207,6 @@ class PinPad extends PinCmdBuilder {
                 };
                 break;
         }
-
         return;
     }
 
@@ -257,19 +248,18 @@ class PinPad extends PinCmdBuilder {
             this.parseCardData(commandResp)
         }
         else {
-            this.logDeviceState("[ERROR] Undocumented Card Data below");
-            this.logDeviceState(commandResp);
+            this.logDeviceState(`[Partial Data] Card Data Report contains no data: ${this.convertArrayToHexString(commandResp)}`);
+            this.logDeviceState();
         }
     }
 
     requestCardSwipe = swipeOptions => new Promise( (resolve, reject) => {
         this.swipeHasBegun = true;
         this.cardDataObj = {};
-        this.logDeviceState(`[INFO]: MSR transaction begun || ${new Date()}`)
+        this.logDeviceState(`[INFO]: MSR transaction has begun || ${new Date()}`)
 
         return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
-            : 
-            this.sendCommandWithResp( this.clearSessionCmd )
+            : this.sendCommandWithResp( this.clearSessionCmd )
             .then( ackResp => {
                 this.transactionStatusCallback(ackResp);
 
@@ -283,7 +273,7 @@ class PinPad extends PinCmdBuilder {
     startTransaction = emvOptions => new Promise( (resolve, reject) => {
         this.transactionHasStarted = true;
         this.cardDataObj = {};
-        this.logDeviceState(`[INFO]: EMV transaction begun || ${new Date()}`)
+        this.logDeviceState(`[INFO]: EMV transaction has begun || ${new Date()}`)
 
         return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
             : this.sendCommandWithResp(this.clearSessionCmd)
@@ -300,8 +290,7 @@ class PinPad extends PinCmdBuilder {
         this.logDeviceState(`[PIN]: Request for PIN entry start || ${new Date()}`);
 
         return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
-            :
-            this.sendCommandWithResp( this.buildPinCommand( pinOptions || {} ) )
+            : this.sendCommandWithResp( this.buildPinCommand( pinOptions || {} ) )
                 .then( resp => resolve(resp)
                 ).catch(err => reject(err));
     }); 
@@ -407,14 +396,6 @@ class PinPad extends PinCmdBuilder {
         }).catch(err => reject(this.buildDeviceErr(err)))
     );
 
-    requestTipOrCashback = tipCashbackOptions => new Promise((resolve, reject) => (!this.device.gatt.connected) ?
-        reject(this.buildDeviceErr(deviceNotOpen))
-        : this.buildTipOrCashbackCmd( (tipCashbackOptions || {} ))
-            .then(tipCashbackCmd => this.sendCommandWithResp(tipCashbackCmd)
-            ).then(resp => resolve(resp)
-            ).catch(err => reject(this.buildDeviceErr(err)))
-    );
-
     setDisplayMessage = displayOptions => new Promise((resolve, reject) => 
         (this.device && this.device.gatt.connected) ? 
             this.buildDisplayCmd( (displayOptions || {}) ).then( cmd => this.sendCommandWithResp(cmd) 
@@ -423,6 +404,7 @@ class PinPad extends PinCmdBuilder {
             : reject( this.buildDeviceErr(deviceNotOpen)) );
 
     sendPinCommand = writeCommand => new Promise( (resolve, reject) => {
+        writeCommand = (typeof(writeCommand) === 'string') ? this.hexToBytes(writeCommand) : writeCommand;
         this.logDeviceState(`[AppFromHostLength]: ${this.convertArrayToHexString([writeCommand.length])} || ${new Date()}`);
 
         return (!this.sendLenToDevice) ? reject( this.buildDeviceErr(commandNotSentFromHost) )

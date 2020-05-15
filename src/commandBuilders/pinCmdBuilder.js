@@ -19,11 +19,21 @@ class PinCmdBuilder extends PinStatusParser {
         });
     }
 
-    buildSwipeCommand = ({ timeout, isFallback, toneChoice, displayType }) => ([ 
-        0x01, 0x03, (timeout || 0x3C),
-        (isFallback === true) ? 0x04 : (typeof(displayType) !== 'undefined') ? this.displayTypes[ displayType.toLowerCase() ] : 0x02,
-        (typeof(toneChoice) !== 'undefined') ? this.toneChoice[ toneChoice.toLowerCase() ] : 0x01
-    ]);
+    buildSwipeCommand = ({ timeout, isFallback, toneChoice, displayType }) => {
+        const displayTypes = Object.freeze({
+            'swipeidlealternate': 0x00,
+            'swipecard': 0x01,
+            'pleaseswipe': 0x02,
+            'pleaseswipeagain': 0x03,
+            'chiperroruseswipe': 0x04
+        });
+
+        return ([ 
+            0x01, 0x03, (timeout || 0x3C),
+            (isFallback === true) ? 0x04 : (typeof(displayType) !== 'undefined') ? displayTypes[ displayType.toLowerCase() ] : displayTypes.pleaseswipe,
+            (typeof(toneChoice) !== 'undefined') ? this.toneChoice[ toneChoice.toLowerCase() ] : 0x01
+        ])
+    };
 
     buildEmvCommand = ({ 
         timeout, 

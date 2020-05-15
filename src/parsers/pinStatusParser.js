@@ -295,7 +295,7 @@ class PinStatusParser extends ParsePinConfig {
     }
 
     parseCardStatusReport = cardStatus => (cardStatus.length < 4) ?  
-        this.findOperationStatus(cardStatus[2])
+        this.findOperationStatus( (cardStatus[2] || cardStatus[1]) )
         : ({
             ...this.findOperationStatus(cardStatus[2]),
             cardStatus: (cardStatus[2] === 0x00) ? "Ok" : "Error",
