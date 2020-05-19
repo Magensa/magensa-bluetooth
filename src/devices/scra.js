@@ -9,7 +9,7 @@ import {
     closeSuccess, 
     successCode, 
     openSuccess,
-    unknownUndoc
+    magUuidPrefix
 } from '../utils/constants';
 
 class Scra extends ScraCmdBuilder {
@@ -29,10 +29,10 @@ class Scra extends ScraCmdBuilder {
         this.commandCharacteristic = null;
         this.cardDataListener = null;
         
-        this.cardDataNotification ="0508e6f8-ad82-898f-f843-e3410cb60201";
-        this.commandCharId = '0508e6f8-ad82-898f-f843-e3410cb60200';
-        this.dataReadyId = "0508e6f8-ad82-898f-f843-e3410cb60202";
-        this.dataReadStatusId = "0508e6f8-ad82-898f-f843-e3410cb60203";
+        this.cardDataNotification =`${magUuidPrefix}201`;
+        this.commandCharId = `${magUuidPrefix}200`;
+        this.dataReadyId = `${magUuidPrefix}202`;
+        this.dataReadStatusId = `${magUuidPrefix}203`;
 
         this.cancelEmvCommand = Uint8Array.of(
             0x49, 0x06, 0x00, 0x00, 0x03, 0x04, 0x00, 0x00

@@ -7,7 +7,15 @@ import {
     deviceNotOpen,
     responseNotReceived
 } from '../errorHandler/errConstants';
-import { openSuccess, successCode, noSessionToClear, gattBusy, successfulClose } from '../utils/constants';
+import { 
+    openSuccess, 
+    successCode, 
+    noSessionToClear, 
+    gattBusy, 
+    successfulClose, 
+    magUuidPrefix 
+} from '../utils/constants';
+
 
 class PinPad extends PinCmdBuilder {
     constructor(device, callBacks) {
@@ -15,10 +23,10 @@ class PinPad extends PinCmdBuilder {
         this.transactionCallback = callBacks.transactionCallback || callBacks;
         this.transactionStatusCallback = callBacks.transactionStatusCallback;
 
-        this.deviceFromHostLen = '0508e6f8-ad82-898f-f843-e3410cb60220';
-        this.deviceFromHostData = '0508e6f8-ad82-898f-f843-e3410cb60221';
-        this.deviceToHostLen = '0508e6f8-ad82-898f-f843-e3410cb60222';
-        this.deviceToHostData = '0508e6f8-ad82-898f-f843-e3410cb60223';
+        this.deviceFromHostLen = `${magUuidPrefix}220`;
+        this.deviceFromHostData = `${magUuidPrefix}221`;
+        this.deviceToHostLen = `${magUuidPrefix}222`;
+        this.deviceToHostData = `${magUuidPrefix}223`;
 
         this.cardDataListener = null;
         this.receiveDataChar = null;
@@ -131,7 +139,7 @@ class PinPad extends PinCmdBuilder {
             .catch( err => {
                 if (err.code === gattBusy.code && err.message === gattBusy.message) {
                     this.logDeviceState(`[INFO]: Read failed due to device being busy. Attempting read again || ${new Date()}`)
-                    return this.delayPromise(100).then(() => resolve( this.readCommandResp() ))
+                    return this.delayPromise(50).then(() => resolve( this.readCommandResp() ))
                 }
                 else return reject(this.buildDeviceErr(err))
             }));
@@ -506,12 +514,13 @@ class PinPad extends PinCmdBuilder {
         .catch( err => reject(err) )
     );
 
-    clearSession = () => new Promise( (resolve, reject) => {
+    clearSession = bitmapId => new Promise( (resolve, reject) => {
         this.logDeviceState(`[ClearSession]: Request to clear session || ${new Date()}`);
 
         return (!this.sendLenToDevice) ? resolve(noSessionToClear) 
-            : this.sendCommandWithResp(this.clearSessionCmd)
-            .then( ackResp => {
+            : this.sendCommandWithResp(
+                (!bitmapId) ? this.clearSessionCmd : [0x01, 0x02, bitmapId]
+            ).then( ackResp => {
                 this.transactionStatusCallback(ackResp);
                 this.logDeviceState(`[ClearSession]: Received clear session response || ${new Date()}`);
                 this.clearInternalState();

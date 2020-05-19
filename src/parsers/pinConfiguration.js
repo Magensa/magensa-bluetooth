@@ -1,6 +1,7 @@
 import PinUtils from '../utils/pinUtils';
 import { configStr, unknown, ascii, unknownUndoc } from '../utils/constants';
 
+
 class ParsePinConfig extends PinUtils {
     constructor(device, callBacks) {
         super(device, callBacks);

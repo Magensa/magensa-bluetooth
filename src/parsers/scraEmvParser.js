@@ -1,4 +1,5 @@
 import TrxStatusParser from './trxStatusParser';
+import { unknownUndoc } from '../utils/constants';
 
 const dukptFailureBase = "Failure, DUKPT scheme is ";
 const invalidBase = "Invalid ";
@@ -64,9 +65,7 @@ class ScraEmvParser extends TrxStatusParser {
                 code: parseInt(this.convertArrayToHexString( resultCode ), 16),
                 name: "StartTransactionError",
                 message: this.emvResultCodes[ resultCode[1] ] || "Transaction Error Message not yet documented"
-            })
-            :
-            ({
+            }) : ({
                 code: 0,
                 message: "Success, transaction has started"
             })

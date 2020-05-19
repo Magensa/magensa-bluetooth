@@ -1,5 +1,6 @@
 import SwipeParser from './swipeParser';
 
+
 class EmvParser extends SwipeParser {
     constructor() {
         super();

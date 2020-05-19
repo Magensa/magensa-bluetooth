@@ -1,6 +1,7 @@
 import ParsePinConfig from './pinConfiguration';
 import { unknown, unknownUndoc } from '../utils/constants';
 
+
 class PinStatusParser extends ParsePinConfig {
     constructor(device, callBacks) {
         super(device, callBacks);
@@ -36,13 +37,16 @@ class PinStatusParser extends ParsePinConfig {
             0x8B: "Amount Needed - If PIN amount is required, no amount has been set",
             0x8C: "Battery is critically low",
             0x8D: "Device is resetting",
+            0x8E: "Firmware update not allowed",
+            0x8F: "Value too large",
             0x90: "Certificate does not exist",
             0x91: "Expired (Cert/CRL)",
             0x92: "Invalid (Cert/CRL/Message)",
             0x93: "Revoked (Cert/CRL)",
             0x94: "CRL does not exist",
             0x95: "Certificate exists",
-            0x96: "Duplicate KSN/Key"
+            0x96: "Duplicate KSN/Key",
+            0x9A: "Operator has pressed Cancel when prompted to enter admin passcode"
         });
 
         this.pinCommandIds = Object.freeze({

@@ -69,9 +69,8 @@ scanForDevices(exampleCallback).then( connectedDevice =>
 const examplePairing = async() => {
     try {
         const connectedDevice = await scanForDevices(exampleCallback);
-
         /*  
-            Now "connectedDevice" contains the device object.  
+            Now 'connectedDevice' contains the device object.  
             Store this in a manner that makes sense for your application.  
         */
         window.MagTekDevice = connectedDevice;
@@ -82,10 +81,10 @@ const examplePairing = async() => {
 }
 ```  
   
-The callback function provided is the only way the paired device can send data to the host.  
+The callback function(s) provided are the only way the paired device can send data to the host.  
 - All data returned to the provided callbacks will be of type ```object```.  Please see [Return Objects](#Return-Objects) section for more information.
 - Please see the [Callbacks](#Callbacks) section below for more information about user provided callback functions.
-- For SPA applications, please ensure that the callback function provided is always "mounted" to receive data.
+- For single page applications, please ensure that the callback function(s) provided is always "mounted" to receive data.
 
 
 Device Interface API
@@ -94,27 +93,29 @@ All methods are asynchronous (```isDeviceOpen``` being the only synchronous exce
   
 | Function | Input Parameters | Output | Notes |
 |:--------:|:-------:|:-------:|:--------:|
-| scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#1-Device-Object) | [Please refer to examples below](#Callback-Examples). Device name is optional. |
-| startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#6-Success-Object) | Initiates EMV transaction. 'emvOptions' is optional - any property supplied will override the default |
+| scanForDevices | [callbacks](#Callbacks) [,deviceName[, deviceType]] | [Device Object](#1-Device-Object) | [Please refer to callback examples below](#Callback-Examples). Device name is optional. Device type is optional and supports special cases. Available types [listed here](#Device-Types) |
+| startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#6-Success-Object) | Initiates EMV transaction. [emvOptions](#EMV-Options-Object) is optional - any property supplied will override the default |
 | cancelTransaction | none | [Success](#6-Success-Object) | Cancel any transaction that is in progress. |
 | openDevice | none | [Success](#6-Success-Object) | Opens paired device to receive commands |
 | closeDevice | none | [Success](#6-Success-Object) | Clears session (when applicable) and closes device safely |
-| clearSession | none | (PinPad only) : [Success](#6-Success-Object) | Removes previous card data from device's volatile memory. Only PinPad devices have session  |
+| clearSession | Number (optional) | [Success](#6-Success-Object) | Removes previous card data from device's volatile memory. Only PinPad devices have session. Optional input is "Bitmap slot number" for displaying custom display templates |
 | deviceInfo | none | [Device Information](#7-Device-Information) | Be aware this call will clear device session prior to returning device information |
-| requestCardSwipe | [swipeOptions](#Swipe-Options-Object) | [Success](#6-Success-Object) | swipeOptions is optional. Any property supplied will override the default|
+| requestCardSwipe | [swipeOptions](#Swipe-Options-Object) | [Success](#6-Success-Object) | [swipeOptions](#Swipe-Options-Object) is optional. Any property supplied will override the default|
 | isDeviceOpen | none | ```Boolean``` | synchronous function that returns device's open status |
-| sendCommand | command: ```Hex String``` or ```Array of Numbers``` | ```object``` | send raw command to device. Output will be an object (if the response has a parser) or array (if returning raw device response) |
+| sendCommand | ```Hex String``` or ```Array<Number>``` | ```object``` | send raw command to device. Output will be an object (if the response has a parser) or array (if returning raw device response) |
 | forceDisconnect | none | ```void``` | Sever device connection, in the case that the device becomes unresponsive |
 | requestPinEntry | [pinOptions](#PIN-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
 | setDisplayMessage | [displayOptions](#-Display-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
-| sendUserSelection | selectionResult (Number) | [Success](#6-Success-Object) | SCRA devices only |
-| sendArpcResponse | ARPC: Hex String or ```Array<Numbers>``` | [Success](#6-Success-Object) | For more information about building ARPC, please see the [MagTek® documentation](https://www.magtek.com/content/documentationfiles/d998200136.pdf#page=129) |
+| sendUserSelection | Number | [Success](#6-Success-Object) | SCRA devices only. This command is only used to respond to device's [userSelectionRequest](#10-User-Selection-Request) |
+| sendArpcResponse | ```Hex String``` or ```Array<Numbers>``` | [Success](#6-Success-Object) | For more information about building ARPC, please see the [MagTek® documentation](https://www.magtek.com/content/documentationfiles/d998200136.pdf#page=129) |
 | setDeviceDateTime | JavaScript [```Date```](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) object | [Success](#6-Success-Object) | SCRA devices only |
 | requestTipOrCashback | [tipCashbackOptions](#Tip-Cashback-Options-Object) | [Success](#6-Success-Object) | DynaPro Go Only |  
 
 
 ## EMV Options Object
-Emv Options object is an optional input object for the ```startTransaction``` function.  All property values have default values. Any property supplied will override the default value, while any not supplied will use default values.  There are some slight differences between PinPad Devices, SCRA devices, and the devices themselves - so this section will be broken down into four parts:  
+Emv Options object is the input object for the ```startTransaction``` function.  All property values have default values. Any property supplied will override the default value, while any not supplied will use default values.  
+There are some differences between devices - so this section will be broken down into four parts:  
+
 1. [Properties that are shared](#Shared-Properties) by both device types   
 2. [Properties for SCRA](#SCRA-properties-only) devices only
 3. [PinPad properties](#PinPad-properties-only) only
@@ -223,11 +224,12 @@ User defined callback functions can be as granular as desired.  For this purpose
   
 | Callback | Return object | Notes |
 |:--------:|:-------------:|:-----:|
-| transactionCallback | [Transaction Result Object](#2-Transaction-Result-Object) | Transaction data. Object structure will depend on which type of transaction was requested |
+| transactionCallback | [Transaction Result Object](#2-Transaction-Result-Object) | Transaction data. Object structure will depend on which type of transaction was requested. This is the only mandatory callback, as it serves as the main/default callback. |
 | errorCallback | [Error Object](#5-Error-Object) | If provided, all internal errors that cannot be thrown to a caller will be piped to this callback. If not provided, internal errors will log to JavaScript console. All errors pertaining to functions invoked via the [deviceInterface](#Device-Interface-API) will always be thrown back to the caller |
 | displayCallback | [Display Message Object](#3-Display-Message-Object) | Message to display directly to the end user. This callback is only used by SCRA devices. PinPad devices will display messages directly on the device |
 | transactionStatusCallback | [Transaction Status Object](#4-Transaction-Status-Object) | Status, Progress, Messages, and Codes will all be piped to this callback. You can throttle [```reportVerbosity```](#SCRA-properties-only) on SCRA devices |
 | disconnectHandler | Disconnect Event | Disconnect Event inherits from [Event](https://developer.mozilla.org/en-US/docs/Web/API/Event). Disconnect events are emitted every time a device disconnects (closes) |
+| userSelectionCallback | [userSelectionRequest](#10-User-Selection-Request) | SCRA devices that have multiple applications, and process a card with multiple applications will send this report. User must select item from the menu items listed in the report and respond using the ```sendUserSelection``` function with the menu selection number |
 
 # Callback Examples
 This is the most basic example - using Promises.
@@ -322,6 +324,13 @@ const callbacks = (function() {
         document.getElementById('display-to-user').innerText = displayMessage;
     }
 
+    allCallbacks.userSelectionCallback = ({ userSelectionRequest }) => {
+        /*
+            Respond to any User Selection Request Notifications.
+            SCRA devices with multiple applications only.
+        */
+    }
+
     allCallbacks.disconnectHandler = event => {
         //Handle device disconnect events.
         let message = `Device: ${event.target.name} has disconnected`;
@@ -388,6 +397,13 @@ const exampleDisconnectHandler = event => {
     let message = `Device: ${event.target.name} has disconnected`;
 }
 
+const exampleUserSelectionCallback = ({ userSelectionRequest }) => {
+     /*
+        Respond to any User Selection Request Notifications.
+        SCRA devices with multiple applications only.
+    */
+}
+
 //Note that when structuring multiple callbacks in an object - 'transactionCallback' becomes mandatory.
 
 let callBackObject = {
@@ -395,7 +411,8 @@ let callBackObject = {
     errorCallback: exampleErrorHandler,
     displayCallback: exampleDisplayMessageHandler,
     transactionStatusCallback: exampleTransactionStatusHandler,
-    disconnectHandler: exampleDisconnectHandler
+    disconnectHandler: exampleDisconnectHandler,
+    userSelectionCallback: exampleUserSelectionCallback
 }
 
 //Using Promises
@@ -456,13 +473,13 @@ const connectDevice = async() => {
 {
     arqcData: String,
     arqcDataParsed: [
-        { tag: String, tagName: String, length: Number, value: String }, 
-        { tag: String, tagName: String, length: Number, value: String }
+        { tag: String, length: Number, value: String }, 
+        { tag: String, length: Number, value: String }
     ],
     batchData: String,
     batchDataParsed: [
-        { tag: String, tagName: String, length: Number, value: String },
-        { tag: String, tagName: String, length: Number, value: String }
+        { tag: String, length: Number, value: String },
+        { tag: String, length: Number, value: String }
     ],
     swipeData: {
         ksn: String,
@@ -563,6 +580,17 @@ All errors extend JavaScript's [Error](https://developer.mozilla.org/en-US/docs/
 }
 ```
 
+#### 10. User Selection Request
+```javascript
+{
+    userSelectionRequest: {
+        selectionType: String,
+        timeRemaining:  Number,
+        menuItems: Array<Number>
+    }
+}
+```
+
 Playground and Additional Information
 ============
 Please visit our [Playground](https://btplayground.magensa.dev) for an interactive demo.
@@ -570,7 +598,7 @@ Please visit our [Playground](https://btplayground.magensa.dev) for an interacti
 - The Playground [source code](https://github.com/Magensa/MagensaBluetoothPlayground) is also available as an example implementation.
 <br />  
 
-### Debug Event
+## _Debug Event_
 For added visibility during development, this library has a debug event emitter (```deviceLog```) that will log verbose details for all device interactions.    
 This can be especially useful when a bad command is sent - or to see the behavior when a device begins to refuse commands.   
 If you wish to subscribe to the event, you may do so:  
@@ -582,14 +610,19 @@ window.addEventListener('deviceLog', debugLogger, { passive: true});
 window.removeEventListener('deviceLog', debugLogger, { passive: true});
 ```  
 
-### Transaction Amount Limitations
-Please be aware that there are limitations on maximum amounts for all MagTek devices:  
-
-- Request Tip or Cashback:  
+## _Transaction Amount Limitations_
+Please be aware that there are limitations on maximum amounts for transactions:  
 The maximum length of Transaction Amount, Calculated Tax Amount, Tip dollar amount, and Cash Back
 dollar amount is 10 digits. If the Tip calculated by percentage equals or exceeds $42,949,672.95, the
 device shows 0.
 
+## _Device Types_
+Under very rare circumstances, it is possible this library will fail to identify a valid device type.  
+In this case, there is a third parameter for ```scanForDevices``` function that accepts a ```deviceType```. The available types are:  
+- ```tDynamo```
+- ```eDynamo```
+- ```dynaProGo```
+- ```DynaPro Mini```  
 
 MagTek® is a registered trademark of MagTek, Inc.  
 Magensa™ is a trademark of MagTek, Inc.

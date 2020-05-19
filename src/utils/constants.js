@@ -13,6 +13,8 @@ const unknown = "Unknown";
 const unknownUndoc = `${unknown}/Undocumented`;
 const ascii = "ASCII";
 
+const magUuidPrefix = "0508e6f8-ad82-898f-f843-e3410cb60";
+
 const noSessionToClear = Object.freeze({
     code: successCode,
     message: "Success, there was no session to clear"
@@ -63,5 +65,6 @@ export {
     configStr,
     unknown,
     unknownUndoc,
-    ascii
+    ascii,
+    magUuidPrefix
 }

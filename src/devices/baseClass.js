@@ -8,7 +8,13 @@ import {
     apiNetworkErr,
     wrongInputTypes
 } from '../errorHandler/errConstants';
-import { cardTypeAll, cardTypesObj, successfulClose } from '../utils/constants';
+import { 
+    cardTypeAll, 
+    cardTypesObj, 
+    successfulClose, 
+    magUuidPrefix 
+} from '../utils/constants';
+
 
 class DeviceBase extends ErrorHandler {
     constructor(device, callbacks) {
@@ -20,9 +26,9 @@ class DeviceBase extends ErrorHandler {
         this.cardService = null;
 
         this.deviceUUIDs = [
-            "0508e6f8-ad82-898f-f843-e3410cb60104",
-            "0508e6f8-ad82-898f-f843-e3410cb60103", 
-            "0508e6f8-ad82-898f-f843-e3410cb60101"
+            `${magUuidPrefix}104`,
+            `${magUuidPrefix}103`, 
+            `${magUuidPrefix}101`
         ];
 
         this.currencyCode = Object.freeze({
@@ -62,8 +68,7 @@ class DeviceBase extends ErrorHandler {
 
                     return resolve();
                 })
-            :
-            reject( this.buildDeviceErr(deviceNotFound) )
+            : reject( this.buildDeviceErr(deviceNotFound) )
     });
 
     disconnect = () => new Promise( resolve =>  {
