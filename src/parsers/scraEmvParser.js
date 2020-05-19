@@ -24,6 +24,20 @@ class ScraEmvParser extends TrxStatusParser {
             0x91: invalidBase + "Device Serial Number",
             0x96: invalidBase + "System Date and Time"
         });
+
+        this.resultCodes = Object.freeze({
+            '0000': "Success",
+            '038B': "Invalid Selection Status",
+            '038C': 'Invalid Selection Result',
+            '038D': "Failure, no transaction currently in progress",
+            '038F': "Failure, transaction already in progress",
+            '0390': 'Device has no keys',
+            '0391': 'Invalid device serial number',
+            '0392': 'Invalid type of MAC field',
+            '0396': 'Invalid date/time data',
+            '0397': 'Invalid MAC',
+            '1000': `${unknownUndoc} result`
+        });
     }
 
     parseEmvData = (emvData, isArqc) => (isArqc) ? ({
@@ -65,6 +79,15 @@ class ScraEmvParser extends TrxStatusParser {
             menuItems: this.convertArrayToHexString(selectionRequest.slice(2))
         }
     })
+    
+    parseResultCode =  resp => {
+        const resultCode = (resp.length > 5) ? this.convertArrayToHexString( resp.slice(4, 6) ) : "1000";
+
+        return ({
+            code: parseInt(resultCode, 16),
+            message: (this.resultCodes[ resultCode ] || `${unknownUndoc} result code`)
+        })
+    }
 }
 
 export default ScraEmvParser;

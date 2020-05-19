@@ -34,19 +34,6 @@ class Scra extends ScraCmdBuilder {
         this.dataReadyId = "0508e6f8-ad82-898f-f843-e3410cb60202";
         this.dataReadStatusId = "0508e6f8-ad82-898f-f843-e3410cb60203";
 
-        this.resultCodes = Object.freeze({
-            '0000': "Success",
-            '038B': "Invalid Selection Status",
-            '038C': 'Invalid Selection Result',
-            '038D': "Failure, no transaction currently in progress",
-            '038F': "Failure, transaction already in progress",
-            '0390': 'Device has no keys',
-            '0391': 'Invalid device serial number',
-            '0392': 'Invalid type of MAC field',
-            '0396': 'Invalid date/time data',
-            '0397': 'Invalid MAC'
-        });
-
         this.cancelEmvCommand = Uint8Array.of(
             0x49, 0x06, 0x00, 0x00, 0x03, 0x04, 0x00, 0x00
         );
@@ -226,9 +213,8 @@ class Scra extends ScraCmdBuilder {
         reject(deviceNotOpen)
         : this.sendCommandWithResp(
             this.buildDateTimeCommand(specificTime)
-        ).then(resp => resolve({
-                dateTimeResult: this.resultCodes[ this.convertArrayToHexString(resp.slice(4, 6)) ] || `${unknownUndoc} result code`
-        })).catch(err => reject(this.buildDeviceErr(err)))
+        ).then(resp => resolve( this.parseResultCode(resp) )
+        ).catch(err => reject(this.buildDeviceErr(err)))
     );
 
     readBatteryLevel = () => new Promise( resolve => 
@@ -275,24 +261,14 @@ class Scra extends ScraCmdBuilder {
             .then(resp => {
                 this.logDeviceState(`[User Selection Resp]: ${this.convertArrayToHexString(resp)}`);
                 
-                return resolve({
-                    userSelectionResponse: (this.resultCodes[ 
-                        this.convertArrayToHexString( resp.slice(4, 6) ) 
-                    ] || "Unknown or undocumented result code")
-                });
+                return resolve( this.parseResultCode(resp) )
             }).catch(err => reject( this.buildDeviceErr(err) ))
     )
 
     sendArpc = arpcResp => new Promise((resolve, reject) => this.sendArpcBase(arpcResp)
         .then(arpcCmd => this.sendCommandWithResp(arpcCmd))
-        .then(resp => {
-            this.logDeviceState(`[Send ARPC Resp]: ${this.convertArrayToHexString(resp)}`);
-            const resultCode = (resp.length > 5) ? this.convertArrayToHexString( resp.slice(4, 6) ) : "";
-
-            return resolve({
-                sendArpcResponse: (this.resultCodes[ resultCode ] || "Unknown or undocumented result code")
-            })
-        }).catch(err => reject(this.buildDeviceErr(err)))
+        .then(resp => resolve( this.parseResultCode(resp) ))
+        .catch(err => reject(this.buildDeviceErr(err)))
     );
 
     clearGattCache = () => {
@@ -322,10 +298,10 @@ class Scra extends ScraCmdBuilder {
     cancelTransaction = () => new Promise( (resolve, reject) => (!this.commandCharacteristic) ? 
         reject( this.buildDeviceErr(commandNotSent))
         : this.sendCommandWithResp(this.cancelEmvCommand)
-        .then(resp => resolve({
-            cancelResponse: (this.resultCodes[ this.convertArrayToHexString(resp.slice(4, 6)) ] || `${unknownUndoc} result code`)
-        })).catch(err => reject(this.buildDeviceErr(err)))
+        .then(resp => resolve( this.parseResultCode(resp) )
+        ).catch(err => reject(this.buildDeviceErr(err)))
     );
+
 
     closeDevice = () => new Promise( (resolve, reject) => 
         (!this.device.gatt.connected) ? resolve({

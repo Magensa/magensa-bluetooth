@@ -31,6 +31,7 @@ In order to utilize this library, you must have a MagTek® device with Bluetooth
 - [eDynamo](https://www.magtek.com/product/edynamo)
 - [tDynamo](https://www.magtek.com/product/tdynamo)
 - [DynaPro Mini](https://www.magtek.com/product/dynapro-mini)  
+- [DynaPro Go](https://www.magtek.com/product/dynapro-go)
 
 If you have a device, and would like to see this library in action, please head over to our [Playground](https://btplayground.magensa.dev).  
 If you would like to purchase a device, please head over to the [MagTek Store](https://shop.magtek.com).  
@@ -44,7 +45,7 @@ The device pair window is part of the [WebBluetooth API](https://www.w3.org/comm
 import { scanForDevices } from 'magensa-bluetooth';
 
 function exampleCallback(dataObj) {
-    console.log(dataObj);
+    console.log("data send from device", dataObj);
 };
 
 //Using Promises:
@@ -81,9 +82,10 @@ const examplePairing = async() => {
 }
 ```  
   
-The callback function provided is the only way the paired device can send data to the user.  
+The callback function provided is the only way the paired device can send data to the host.  
 - All data returned to the provided callbacks will be of type ```object```.  Please see [Return Objects](#Return-Objects) section for more information.
 - Please see the [Callbacks](#Callbacks) section below for more information about user provided callback functions.
+- For SPA applications, please ensure that the callback function provided is always "mounted" to receive data.
 
 
 Device Interface API
@@ -92,22 +94,31 @@ All methods are asynchronous (```isDeviceOpen``` being the only synchronous exce
   
 | Function | Input Parameters | Output | Notes |
 |:--------:|:-------:|:-------:|:--------:|
-| scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#1-Device-Object) | [Please refer to examples below](#Callback-Examples). Device name is optional. **Despite the device being returned in an open state - it is recommended to open the device prior to interaction** |
+| scanForDevices | [callbacks](#Callbacks) [,deviceName] | [Device Object](#1-Device-Object) | [Please refer to examples below](#Callback-Examples). Device name is optional. |
 | startTransaction | [emvOptions](#EMV-Options-Object) | [Success](#6-Success-Object) | Initiates EMV transaction. 'emvOptions' is optional - any property supplied will override the default |
-| cancelTransaction | none | `void` | Cancel any transaction that is in progress. |
+| cancelTransaction | none | [Success](#6-Success-Object) | Cancel any transaction that is in progress. |
 | openDevice | none | [Success](#6-Success-Object) | Opens paired device to receive commands |
 | closeDevice | none | [Success](#6-Success-Object) | Clears session (when applicable) and closes device safely |
-| clearSession | none | `void` (SCRA) [Success](#6-Success-Object)  (PinPad) | Removes previous card data from device's volatile memory. Only PinPad devices have session  |
+| clearSession | none | (PinPad only) : [Success](#6-Success-Object) | Removes previous card data from device's volatile memory. Only PinPad devices have session  |
 | deviceInfo | none | [Device Information](#7-Device-Information) | Be aware this call will clear device session prior to returning device information |
 | requestCardSwipe | [swipeOptions](#Swipe-Options-Object) | [Success](#6-Success-Object) | swipeOptions is optional. Any property supplied will override the default|
 | isDeviceOpen | none | ```Boolean``` | synchronous function that returns device's open status |
+| sendCommand | command: ```Hex String``` or ```Array of Numbers``` | ```object``` | send raw command to device. Output will be an object (if the response has a parser) or array (if returning raw device response) |
+| forceDisconnect | none | ```void``` | Sever device connection, in the case that the device becomes unresponsive |
+| requestPinEntry | [pinOptions](#PIN-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
+| setDisplayMessage | [displayOptions](#-Display-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
+| sendUserSelection | selectionResult (Number) | [Success](#6-Success-Object) | SCRA devices only |
+| sendArpcResponse | ARPC: Hex String or ```Array<Numbers>``` | [Success](#6-Success-Object) | For more information about building ARPC, please see the [MagTek® documentation](https://www.magtek.com/content/documentationfiles/d998200136.pdf#page=129) |
+| setDeviceDateTime | JavaScript [```Date```](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) object | [Success](#6-Success-Object) | SCRA devices only |
+| requestTipOrCashback | [tipCashbackOptions](#Tip-Cashback-Options-Object) | [Success](#6-Success-Object) | DynaPro Go Only |  
 
 
 ## EMV Options Object
-Emv Options object is optional.  All property values have default values. Any property supplied will override the default value, while any not supplied will use default values.  There are some slight differences between PinPad Devices and SCRA devices, so this section will be broken down into three parts:  
+Emv Options object is an optional input object for the ```startTransaction``` function.  All property values have default values. Any property supplied will override the default value, while any not supplied will use default values.  There are some slight differences between PinPad Devices, SCRA devices, and the devices themselves - so this section will be broken down into four parts:  
 1. [Properties that are shared](#Shared-Properties) by both device types   
 2. [Properties for SCRA](#SCRA-properties-only) devices only
 3. [PinPad properties](#PinPad-properties-only) only
+4. [DynaPro Go properties](#DynaPro-Go-properties-only) only
 
 ### *__Shared Properties__*:
 -------------------------------  
@@ -115,9 +126,9 @@ Emv Options object is optional.  All property values have default values. Any pr
 |:------------:|:-----------:|:--------------:|:---------------:|:---------------:|
 | timeout  | time, in seconds, before transaction timeout | Number | 1 - 255 | 60 |
 | cardType | types of cards to accept for transaction | String | ```'msr', 'chip', 'chipMsr', 'contactless', 'contactlessChip', 'all'``` | ```chipMsr``` |
-| cashBack | amount to process as cashback transaction. For transactionType ```'refund'```, this value must be ```0``` | Number | any integer (no floats) up to 281 trillion | 0 |
+| cashBack | amount to process as cashback transaction. For transactionType ```'refund'```, this value must be ```0``` | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly | 0 |
 | currencyCode | type of currency. ```'default'``` uses device's application terminal setting (usually USA dollar) | String | ```'dollar', 'euro', 'pound', 'default'```| ```'dollar'``` |
-| authorizedAmount | amount to authorize for transaction. For transactionType ```'refund'```, this value must be ```0``` | Number | any integer (no floats) up to 281 trillion | 100 |
+| authorizedAmount | amount to authorize for transaction. For transactionType ```'refund'```, this value must be ```0``` | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly | 100 |
 <hr />
 
 <br />
@@ -142,6 +153,20 @@ Emv Options object is optional.  All property values have default values. Any pr
 | pinTimeout | wait time in seconds for cardholder to enter PIN | Number | 1 -255 |20 |
 | toneChoice | Select device beep behavior | String | ```'noSound', 'oneBeep', 'twoBeeps'``` | ```'oneBeep'``` |
 | isQuickChip | arm in QuickChip mode, or not | Boolean | ```true``` or ```false``` | ```true``` |
+<hr />
+
+<br />
+
+### *__DynaPro Go properties only__*:
+--------------------------  
+| Property Name | Description | Type | Acceptable Values | Default Value | Notes |
+|:------------:|:-----------:|:--------------:|:---------------:|:---------------:|:---------------:|
+| taxAmount | Total tax amount | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | 0 | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
+| taxPercent | Tax percentage rate | Number or ```Array<Numbers>``` | Number or 4 'byte' (n6 format x 100) representation of number | 0 - 99 |This number is for display purposes only - device does not perform tax calculations |
+| tipAmount | Total tip amount | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | 0 | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
+| balanceBeforeGenAC | (Contactless Only) Balance Read Before Gen AC (EMV Tag DF8104) | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | 0 | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
+| balanceAfterGenAC | (Contactless Only) Balance Read After Gen AC (EMV Tag DF8105) | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | 0 | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
+| trxCategoryCode | (PayPass/MCL Tag 9F53) | Number | N/A | 0 | Optional value |
 
 <hr />
 
@@ -159,11 +184,37 @@ Emv Options object is optional.  All property values have default values. Any pr
 ## PIN Options Object
 | Property Name | Description | Type | Acceptable Values | Default Value | Notes |
 |:------------:|:-----------:|:--------------:|:---------------:|:---------------:|:---------------:|
-| languageSelection | Define language prompt behavior | String | ```'disabled', 'englishFrench', 'allSpecified' ``` | ```'disabled'``` | ```'allSpecified'``` uses tag DFDF2D for available languages |
+| languageSelection | Define language prompt behavior | String | ```'disabled', 'englishFrench', 'allSpecified' ``` | ```'disabled'``` | ```'allSpecified'``` uses tag DFDF2D to define available languages |
 | displayType | Define prompt template for PIN entry | String | ```'enterPin', 'enterPinAmount', 'reEnterPin', 'reEnterPinAmount', 'verifyPin'``` | ```'enterPin'``` | |
-| timeout  | time, in seconds, before requestPin timeout | Number | 1 - 255 (0 for 256 seconds) | 30 | |
+| timeout  | time, in seconds, before requestPin timeout | Number | 0 - 255 (0 for 256 seconds) | 30 | |
 | toneChoice | Select device beep behavior | String | ```'noSound', 'oneBeep', 'twoBeeps'``` | ```'oneBeep'``` | |
-| pinBlockFormat | Define Pin Block Format | String | ```'iso0', 'iso3'``` | ```'iso0'``` | Currently only ISO Format 0 and ISO Format 3 is supported | 
+| pinBlockFormat | Define Pin Block Format | String | ```'iso0', 'iso3'``` | ```'iso0'``` | This value is only respected if device is sent a PAN. If device has no PAN, device creates EPB using ISO Format 1 | 
+| verifyPin | Should device prompt for PIN verification | Boolean | ```true, false``` | ```true``` | |
+| waitMessage | Display wait message | Boolean | ```true, false``` | ```true``` | |
+| maxPinLength | Specify maximum PIN length | Number | <=12 && >= ```minPinLength``` | 12 | Value must be <=12 and >= ```minPinLength``` |
+| minPinLength | Specify minimum PIN length| Number | >=4 && <= ```maxPinLength``` | 4 | Value must be >=4 and <= ```maxPinLength``` |
+
+## Tip Cashback Options Object
+
+| Property Name | Description | Type | Acceptable Values | Default Value | Notes |
+|:------------:|:-----------:|:--------------:|:---------------:|:---------------:|:---------------:|
+| timeout | time (in seconds) before operation timeout | Number | 1 - 60 | 30 |  |
+| commandType | Tip or Cashback Mode | String | ```'tip', 'cashback'``` | N/A | commandType is required |
+| toneChoice | Select device beep behavior | String | ```'noSound', 'oneBeep', 'twoBeeps'``` | ```'oneBeep'``` | |
+| transactionAmount | Subtotal amount for transaction | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | N/A | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
+| calculatedTaxAmount | Total tax amount | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | N/A | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
+| taxRate | Tax percentage rate | Number or ```Array<Numbers>``` |  Number or 4 'byte' (n6 format x 100) representation of number | 0 - 99 | This number is for display purposes only - device does not perform tax calculations |
+| tipSelectionMode | Preset tip amount type | String | ```'percent', 'amount'``` | N/A | This value is only mandatory in Tip mode. N/A for Cashback Mode |
+| leftAmount | Fixed Percent or Amount for left display | Number | 0-99 | 0 | N/A for Cashback Mode |
+| middleAmount | Fixed Percent or Amount for middle display | Number | 0-99 | 0 | N/A for Cashback Mode |
+| rightAmount | Fixed Percent or Amount for right display | Number | 0-99 | 0 | N/A for Cashback Mode |
+
+## Display Options Object
+
+| Property Name | Description | Type | Acceptable Values | Default Value | Notes |
+|:------------:|:-----------:|:--------------:|:---------------:|:---------------:|:---------------:|
+| messageId | Id for message to display | Number | [Acceptable IDs are listed here](https://www.magtek.com/content/documentationfiles/d998200136.pdf#page=51) | N/A | No default value - ID is required |
+| displayTime | How long the display message will display on screen | Number | 0 (infinite) - 255 | 15 seconds | |
 
 # Callbacks
 User defined callback functions can be as granular as desired.  For this purpose - there is only one callback that is mandatory to provide to the ```scanForDevices``` method.  The remaining callbacks are subscription based.  In reference to the return objects for the below callbacks - please see the [Return Objects](#Return-Objects) section for object structures.
@@ -378,7 +429,24 @@ const connectDevice = async() => {
     id: String,
     name: String,
     deviceType: String,
-    deviceInterface: Object
+    deviceInterface: {
+        openDevice: Function
+        startTransaction: Function
+        cancelTransaction: Function
+        sendCommand: Function
+        clearSession: Function
+        closeDevice: Function
+        deviceInfo: Function
+        requestCardSwipe: Function
+        isDeviceOpen: Function
+        forceDisconnect: Function
+        requestPinEntry: Function
+        setDisplayMessage: Function
+        sendUserSelection: Function
+        sendArpcResponse: Function
+        setDeviceDateTime: Function
+        requestTipOrCashback: Function
+    }
 }
 ```
 
@@ -463,9 +531,35 @@ All errors extend JavaScript's [Error](https://developer.mozilla.org/en-US/docs/
 ```javascript
 {
     deviceName: String,
+    deviceType: String,
     isConnected: Boolean,
     serialNumber: String,
     batteryLevel: Number //Scra devices only - Pin devices display battery level
+}
+```
+
+#### 8. Tip Cashback Report
+```javascript
+{
+    tipCashbackReport: {
+        operationStatus: String,
+        reportMode: String,
+        amount: Array<Number>,
+        tax: Array<Number>,
+        taxRate: Array<Number>,
+        tipOrCashbackAmount: Array<Number>
+    }
+}
+```
+
+#### 9. Pin Data Report
+```javascript
+{
+    pinData: {
+        operationStatus: String,
+        pinKsn: String,
+        encryptedPinBlock: String
+    }
 }
 ```
 
@@ -487,6 +581,15 @@ window.addEventListener('deviceLog', debugLogger, { passive: true});
 //Be sure to remove it when unmounting to avoid memory leaks:
 window.removeEventListener('deviceLog', debugLogger, { passive: true});
 ```  
+
+### Transaction Amount Limitations
+Please be aware that there are limitations on maximum amounts for all MagTek devices:  
+
+- Request Tip or Cashback:  
+The maximum length of Transaction Amount, Calculated Tax Amount, Tip dollar amount, and Cash Back
+dollar amount is 10 digits. If the Tip calculated by percentage equals or exceeds $42,949,672.95, the
+device shows 0.
+
 
 MagTek® is a registered trademark of MagTek, Inc.  
 Magensa™ is a trademark of MagTek, Inc.

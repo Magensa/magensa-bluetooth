@@ -172,9 +172,9 @@ class PinCmdBuilder extends PinStatusParser {
         calculatedTaxAmount,
         taxRate,
         tipSelectionMode,
-        leftButton,
-        middleButton,
-        rightButton
+        leftAmount,
+        middleAmount,
+        rightAmount
     }) => new Promise((resolve, reject) => {
         const validator = this.validateAmount(reject);
 
@@ -229,15 +229,15 @@ class PinCmdBuilder extends PinStatusParser {
             )
 
             tipCashbackCmd.push(
-                (typeof(leftButton) !== 'undefined') ? this.buildN2Format(leftButton) : 0x00 
+                (typeof(leftAmount) !== 'undefined') ? this.buildN2Format(leftAmount) : 0x00 
             )
 
             tipCashbackCmd.push(
-                (typeof(middleButton) !== 'undefined') ? this.buildN2Format(middleButton) : 0x00 
+                (typeof(middleAmount) !== 'undefined') ? this.buildN2Format(middleAmount) : 0x00 
             )
 
             tipCashbackCmd.push(
-                (typeof(rightButton) !== 'undefined') ? this.buildN2Format(rightButton) : 0x00 
+                (typeof(rightAmount) !== 'undefined') ? this.buildN2Format(rightAmount) : 0x00 
             )
 
             tipCashbackCmd = tipCashbackCmd.concat(this.newArrayPartial(0x00, 25));

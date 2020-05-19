@@ -163,8 +163,6 @@ class PinStatusParser extends ParsePinConfig {
         operationStatus: (this.operationStatus[ statusId ] || `${unknownUndoc} Operation Status`)
     });
 
-    parseDisplayMessageDone = displayStatus => this.findOperationStatus(displayStatus[2]);
-
     parseEmvCompletion = commandResp => {
         //TODO: More research required
         this.logDeviceState(`[EMV Completion]: ${this.convertArrayToHexString(commandResp)}`);
