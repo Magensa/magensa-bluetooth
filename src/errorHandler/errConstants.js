@@ -1,3 +1,13 @@
+const notFoundObj = Object.freeze({
+    errorCode: 8,
+    errorName: "NotFoundError"
+});
+
+const apiNetworkErr = Object.freeze({
+    code: 19,
+    name: 'NetworkError'
+});
+
 const deviceNotFound = Object.freeze({
     code: 1002,
     name: 'DeviceNotFound',
@@ -52,6 +62,24 @@ const commandNotAccepted = Object.freeze({
     message: "Device did not accept command"
 });
 
+const missingRequiredFields = fieldName => Object.freeze({
+    code: 1014,
+    name: "MissingRequiredParameter",
+    message: `'${fieldName}' is required to call this function.`
+});
+
+const wrongInputTypes = (acceptableTypes, propertyName) => Object.freeze({
+    code: 1015,
+    name: "IncorrectInputType",
+    message: `Parameter type for ${propertyName} was not correct, acceptable type(s) are: ${acceptableTypes.join(", ")}`
+});
+
+const wrongInputValues = (acceptableVals, propertyName) => Object.freeze({
+    code: 1015,
+    name: "IncorrectInputValue",
+    message: `Parameter value for ${propertyName} was not correct, acceptable value(s) are: ${acceptableVals.join(", ")}`
+});
+
 export {
     commandNotAccepted,
     commandNotSent,
@@ -61,5 +89,10 @@ export {
     gattServerNotConnected,
     readFailed,
     commandNotSentFromHost,
-    getServiceFail
+    getServiceFail,
+    notFoundObj,
+    apiNetworkErr,
+    missingRequiredFields,
+    wrongInputTypes,
+    wrongInputValues
 }

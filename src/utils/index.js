@@ -10,14 +10,12 @@ class Utilities {
 
      };
 
-     logDeviceState = logInfo => {
-        let logEvent = new CustomEvent("deviceLog", { 
+     logDeviceState = logInfo => window.dispatchEvent(
+        new CustomEvent("deviceLog", { 
             bubbles: true,
             detail: logInfo 
-        });
-
-        window.dispatchEvent(logEvent);
-    }
+        })
+    );
 
     convertArrayToHexString = array =>
         Array.from(array, byte =>
@@ -47,18 +45,25 @@ class Utilities {
         let asciiResp = '';
         for (let i = 0; (i < hexString.length && hexString.substr(i, 2) !== '00'); i += 2) {
             asciiResp += String.fromCharCode(
-                parseInt(hexString.substr(i, 2), 16)
+                parseInt(hexString.substring(i, (i + 2)), 16)
             )
         }
 
         return asciiResp.trim();
     }
 
-    decodeRLE = arraySegment => {
-        let returnSegment = [ arraySegment[0] ];
+    hexToBytes = hexStr => {
+        let bytes = [];
+        for (let current = 0; current < hexStr.length; current += 2)
+            bytes.push( parseInt(hexStr.substring(current, (current + 2)), 16) );
     
+        return bytes;
+    }
+
+    decodeRLE = arraySegment => {
+        const initialLength = arraySegment.length;
+        let returnSegment = [ arraySegment[0] ];
         let nextIndex = 0;
-        let initialLength = arraySegment.length;
     
         for (let i = 1; i < initialLength; i++) {
             nextIndex = i + 1;
@@ -85,9 +90,8 @@ class Utilities {
     buildInitialDataArray = checkForRle => {
         let returnArray = [];
 
-        for (let i = Math.min(...Object.keys(this.rawData)); i < this.maxBlockId; i++) {
+        for (let i = Math.min(...Object.keys(this.rawData)); i < this.maxBlockId; i++)
             returnArray = returnArray.concat(...this.rawData[i])
-        }
 
         return (!checkForRle) ? returnArray : this.checkRle(returnArray);
     }
@@ -95,22 +99,25 @@ class Utilities {
     checkRle = returnArray => (this.rleFormats[ this.initialNotification[0] ]) ? this.decodeRLE(returnArray) : returnArray;
 
     convertCurrencyCode = currencyString => {
-        let currency = currencyString.toLowerCase();
+        const currency = currencyString.toLowerCase();
 
         return (currency === 'us') ? [0x08, 0x40] : 
             (currency === 'euro') ? [0x09, 0x78] : [0x00, 0x00];
     }
 
     //Convert number to 6 byte array.
-    convertNumToAmount = num => {
+    convertNumToAmount = (num, optionalLen) => {
+        optionalLen = optionalLen || 12;
+
         let stringNum = num.toString();
         let returnArr = [];
-        while (stringNum.length < 12)
+
+        while (stringNum.length < optionalLen)
             stringNum = "0" + stringNum;
 
-        for (let i = 0; i < stringNum.length; i +=2)
+        for (let i = 0; i < stringNum.length; i += 2)
             returnArr.push(
-                parseInt(stringNum.substr(i, 2), 16)
+                parseInt(stringNum.substring(i, (i + 2)), 16)
             )
     
         return returnArr;
@@ -118,8 +125,10 @@ class Utilities {
 
     delayPromise = (delay, passedValue) =>
         new Promise( resolve => {
-            setTimeout( () => resolve(passedValue), delay);
+            setTimeout(resolve, delay, passedValue);
         });
+
+    byteArrayToNumber = byteArray => parseInt(this.convertArrayToHexString(byteArray), 10);
 }
 
 export default Utilities;

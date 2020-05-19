@@ -1,6 +1,8 @@
-import PinUtils from '../utils/pinUtils';
+import ParsePinConfig from './pinConfiguration';
+import { unknown, unknownUndoc } from '../utils/constants';
 
-class PinStatusParser extends PinUtils {
+
+class PinStatusParser extends ParsePinConfig {
     constructor(device, callBacks) {
         super(device, callBacks);
 
@@ -35,37 +37,36 @@ class PinStatusParser extends PinUtils {
             0x8B: "Amount Needed - If PIN amount is required, no amount has been set",
             0x8C: "Battery is critically low",
             0x8D: "Device is resetting",
+            0x8E: "Firmware update not allowed",
+            0x8F: "Value too large",
             0x90: "Certificate does not exist",
             0x91: "Expired (Cert/CRL)",
             0x92: "Invalid (Cert/CRL/Message)",
             0x93: "Revoked (Cert/CRL)",
             0x94: "CRL does not exist",
             0x95: "Certificate exists",
-            0x96: "Duplicate KSN/Key"
-        });
-
-        this.pinDisplayMessages = Object.freeze({
-            0x00: "Hands Off",
-            0x01: "Approved",
-            0x02: "Declined",
-            0x03: "Cancelled",
-            0x04: "Thank You",
-            0x05: "PIN Invalid",
-            0x06: "Processing",
-            0x07: "Please Wait"
+            0x96: "Duplicate KSN/Key",
+            0x9A: "Operator has pressed Cancel when prompted to enter admin passcode"
         });
 
         this.pinCommandIds = Object.freeze({
             0x01: "responseACK",
             0x02: "clearSession",
             0x03: "swipe",
+            0x04: "requestPinEntry",
+            0x05: "cancelCommand",
+            0x06: "requestCardholderSelection",
+            0x07: "displayMessage",
+            0x08: "requestDeviceStatus",
+            0x09: "requestDeviceConfiguration",
             0x0A: "requestMsrData",
+            0x0B: "getChallenge",
             0x07: "displayMessage",
             0xA2: "emvTransactionStatus",
             0xAB: "requestEmvData",
-            0x30: "getKsn",
-            0x05: "cancelCommand",
-            0x1A: "requestDeviceInfo"
+            0x1A: "requestDeviceInfo",
+            0x10: "sendBigBlockData",
+            0xA0: "requestTipOrCashback"
         });
 
         this.cardTypesEnum = Object.freeze({
@@ -93,21 +94,8 @@ class PinStatusParser extends PinUtils {
             0x0A: "Chip Card",
             0x0B: "ICC Kernel Test",
             0x0C: "EMV Transaction",
-            0x0D: "Show PAN"
-        });
-
-        this.pinKeyStatusEnum = Object.freeze({
-            "00": "PIN Key OK",
-            "01": "PIN Key Exhausted",
-            "10": "No PIN Key",
-            "11": "PIN Key Not Bound"
-        });
-
-        this.msrKeyStatusEnum = Object.freeze({
-            "00": "MSR Key OK",
-            "01": "MSR Key Exhausted",
-            "10": "No MSR Key",
-            "11": "MSR Key Not Bound"
+            0x0D: "Show PAN",
+            0x1F: "Wait for Tip Selection"
         });
 
         this.cardDataIds = Object.freeze({
@@ -129,6 +117,8 @@ class PinStatusParser extends PinUtils {
             0x02: "Amount confirmation selected",
             0x03: "Waiting for multi-payment ICC Application selection",
             0x04: "ICC Application selected",
+            0x05: "Waiting for signature capture",
+            0x06: "Signature captured",
             0x07: "Waiting for language selection",
             0x08: "Language selected",
             0x09: "Waiting for credit/debit selection",
@@ -136,7 +126,9 @@ class PinStatusParser extends PinUtils {
             0x0B: "Waiting for Pin Entry for ICC",
             0x0C: "PIN entered for ICC",
             0x0D: "Waiting for Pin Entry for MSR",
-            0x0E: "PIN entered for MSR"
+            0x0E: "PIN entered for MSR",
+            0x0F: "Waiting for tip selection",
+            0x10: "Tip interaction selected"
         });
 
         this.bufferTypes = Object.freeze({
@@ -152,8 +144,6 @@ class PinStatusParser extends PinUtils {
         });
 
         this.cardDataObj = {};
-        
-        this.cardStatusOk = 0x00;
 
         this.arqcArriving = false;
         this.batchDataArriving = false;
@@ -161,65 +151,62 @@ class PinStatusParser extends PinUtils {
         this.arqcTotalLen = 0;
         this.batchTotalLen = 0;
 
-        this.statusEnum = Object.freeze({
-            ok: 0x00,
-            empty: 0x01,
-            error: 0x02,
-            disabled: 0x03
+        this.convertStatusToString = Object.freeze({
+            0x00: "Ok",
+            0x01: "Empty",
+            0x02: "Error",
+            0x04: "Disabled"
         });
     }
+
+    findEmvCardholderStatus = cardHolderStatusByte =>  ({
+        emvCardholderStatus: (this.cardholderStatusIds[ cardHolderStatusByte ] || `${unknownUndoc} Cardholder Interaction Status ID: ${cardHolderStatusByte}`)
+    });
+
+    findOperationStatus = statusId => ({
+        operationStatus: (this.operationStatus[ statusId ] || `${unknownUndoc} Operation Status`)
+    });
 
     parseEmvCompletion = commandResp => {
-        //console.log("TODO");
+        //TODO: More research required
+        this.logDeviceState(`[EMV Completion]: ${this.convertArrayToHexString(commandResp)}`);
         return ({
-
+            emvCompletionResponse: commandResp
         });
     }
 
-    formatSerialNumber = commandResp => {
-        let formattedSn = this.findNullTerminatedString(commandResp);
-
-        this.requestedSn = {
-            serialNumber: formattedSn
-        }
-        
-        this.getSerialNumber = true;
-        return;
-    }
-
-    formatKsnAndSn = commandResp => {
-        
-        this.requestedKsn = {
-            ksn: this.convertArrayToHexString( commandResp.slice(2, 12) ),
-            serialNumber: this.convertArrayToHexString( commandResp.slice(12, 20) )
-        };
-
-        this.getKsnAvailable = true;
-        return;
-}
+    formatSerialNumber = commandResp => (this.deviceSerialNumber = this.hexToAscii( this.findNullTerminatedString(commandResp) ));
 
     handleBigBlockBegin = bigBlockData => {
-        let isArqc = (bigBlockData[1] === 0xA4);
-        let isBatchData = (bigBlockData[1] === 0xAB);
+        switch(bigBlockData[1]) {
+            case 0xA4:
+                this.arqcArriving = true;
+                this.arqcTotalLen = this.readTwoByteLength([ bigBlockData[5], bigBlockData[4] ]);
+                break;
+            case 0xAB:
+                this.batchDataArriving = true;
+                this.batchTotalLen = this.readTwoByteLength([ bigBlockData[5], bigBlockData[4] ]);
+                break;
+            case 0x18:
+            case 0x20:
+            case 0x21:
+                //Debug data. Ignore.
+                break;
+            default:
+                this.transactionStatusCallback({
+                    bufferType: (this.bufferTypes[ bigBlockData[1] ] || "Buffer type not documented")
+                });
+                break;
+        }
 
-        this.arqcArriving = isArqc;
-        this.batchDataArriving = isBatchData;
-
-        if (isArqc)
-            this.arqcTotalLen = this.readTwoByteLength([ bigBlockData[5], bigBlockData[4] ]);
-        else 
-            this.batchTotalLen = this.readTwoByteLength([ bigBlockData[5], bigBlockData[4] ]);
-
-        return this.transactionStatusCallback({
-            bufferType: (this.bufferTypes[ bigBlockData[1] ] || "Buffer type not documented")
-        });
+        return;
     }
 
     handleArqcBigBlockFinish = () => {
-        let arqc = this.buildInitialDataArray(false);
-        let dataForArqc = this.convertArrayToHexString( arqc );
+        const arqc = this.buildInitialDataArray(false);
+        const dataForArqc = this.convertArrayToHexString( arqc );
 
-        this.logDeviceState(dataForArqc);
+        this.logDeviceState(`[ARQC]: ${dataForArqc}`);
 
         this.cardDataObj = {
             ...this.cardDataObj,
@@ -232,34 +219,33 @@ class PinStatusParser extends PinUtils {
         this.rawData = {};
 
         this.arqcArriving = false;
+        return (!this.isQuickChipTransaction) ? this.transactionCallback( this.cardDataObj ) : void(0);
     }
 
     handleBatchBigBlockFinish = () => {
-        let batch = this.buildInitialDataArray(false);
-        let dataForBatch = this.convertArrayToHexString( batch );
+        const batch = this.buildInitialDataArray(false);
+        const dataForBatch = this.convertArrayToHexString( batch );
 
-        this.logDeviceState(dataForBatch);
+        this.logDeviceState(`[BATCH DATA]: ${dataForBatch}`);
 
         this.transactionHasStarted = false;
 
-        let parsedBatchData = this.tlvParser(
+        const parsedBatchData = this.tlvParser(
             batch.slice(2)
         );
 
-        let isSignatureRequired = parsedBatchData.find( ({ tag }) => tag === "DFDF40");
+        const isSignatureRequired = parsedBatchData.find( ({ tag }) => tag === "DFDF40");
 
         this.cardDataObj = (isSignatureRequired) ? ({
             ...this.cardDataObj,
             batchData: dataForBatch,
             batchDataParsed: parsedBatchData,
             signatureRequired: (isSignatureRequired === 0x01)
-        })
-        : 
-        ({
+        }) : ({
             ...this.cardDataObj,
             batchData: dataForBatch,
             batchDataParsed: parsedBatchData
-        })
+        });
 
         this.rawData = {};
 
@@ -281,50 +267,40 @@ class PinStatusParser extends PinUtils {
         switch(cardholderResp[1]) {
             case 0x02: 
                 return ({
-                    emvCardholderStatus: this.cardholderStatusIds[ cardholderResp[1] ],
-                    amountConfirmed: (cardholderResp[4] === 0x01) ? true : (cardholderResp[4] === 0x02) ? false : "Unknown/Undocumented Amount Confirmed Status"
+                    ...this.findEmvCardholderStatus(cardholderResp[1]),
+                    isAmountConfirmed: (cardholderResp[4] === 0x01) ? true : (cardholderResp[4] === 0x02) ? false : `${unknownUndoc} Amount Confirmed Status`
                 });
             case 0x04:
                 return ({
-                    emvCardholderStatus: this.cardholderStatusIds[ cardholderResp[1] ],
+                    ...this.findEmvCardholderStatus(cardholderResp[1]),
                     applicationOrLabelName: this.bufferToUtf8( cardholderResp.slice(4) )
                 });
             case 0x0A:
                 return ({
-                    emvCardholderStatus: this.cardholderStatusIds[ cardholderResp[1] ],
+                    ...this.findEmvCardholderStatus(cardholderResp[1]),
                     methodSelected: (cardholderResp[4] === 0x01) ? "Credit" : 
-                    (cardholderResp[4] === 0x02) ? "Debit" : "Unknown/Undocumented payment method selected"
+                    (cardholderResp[4] === 0x02) ? "Debit" : `${unknownUndoc} payment method selected`
                 });
             case 0x20:
                 return ({
-                    emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `Unknown/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`),
-                    tlvData: this.tlvParser( cardholderResp.slice(4) ) 
+                    ...this.findEmvCardholderStatus(cardholderResp[1]),
+                    tlvData: this.convertArrayToHexString( cardholderResp.slice(4) ),
+                    parsedTlvData: this.tlvParser( cardholderResp.slice(4) )
                 });
             default:
-                return (typeof cardholderResp[4] === 'undefined') ? 
-                    ({
-                        emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `Unknown/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`)
-                    }) 
-                    : 
-                    ({
-                        emvCardholderStatus: (this.cardholderStatusIds[ cardholderResp[1] ] || `Unknown/Undocumented Cardholder Interaction Status ID: ${cardholderResp[1]}`),
+                return (typeof(cardholderResp[4]) === 'undefined') ? this.findEmvCardholderStatus(cardholderResp[1]) 
+                    : ({
+                        ...this.findEmvCardholderStatus(cardholderResp[1]),
                         undocumentedData: this.convertArrayToHexString( cardholderResp.slice(4) )
                     });
         }
     }
 
-    parseDisplayMessageDone = displayStatus => ({
-        displayStatus: this.operationStatus[ displayStatus[2] ] || "Display Status not yet documented"
-    });
-
     parseCardStatusReport = cardStatus => (cardStatus.length < 4) ?  
-        ({ 
-            operationStatus: (this.operationStatus[ cardStatus[1] ] || "Unknown Operation Status" )
-        })
-        : 
-        ({
-            operationStatus: this.operationStatus[ cardStatus[1] ],
-            cardStatus: (this.cardStatusOk === cardStatus[2]) ? "Ok" : "Error",
+        this.findOperationStatus( (cardStatus[2] || cardStatus[1]) )
+        : ({
+            ...this.findOperationStatus(cardStatus[2]),
+            cardStatus: (cardStatus[2] === 0x00) ? "Ok" : "Error",
             cardType: this.cardTypesEnum[ cardStatus[3] ]
         });
 
@@ -335,7 +311,7 @@ class PinStatusParser extends PinUtils {
     });
 
     parseDeviceStateReport = deviceResp => ({
-        deviceState: this.deviceState[ deviceResp[1] ], 
+        deviceState: (this.deviceState[ deviceResp[1] ] || `${unknownUndoc} device state id: ${deviceResp[1]}`), 
         sessionState: this.parseSessionState(
             this.decimalToBinary( deviceResp[2] )
         ),
@@ -371,9 +347,16 @@ class PinStatusParser extends PinUtils {
         deviceCertExists: this.stringNumToBool( binaryString[7] )
     });
 
+    keyStatusEnum = pinOrMsr => Object.freeze({
+        "00": `${pinOrMsr} Key OK`,
+        "01": `${pinOrMsr} Key Exhausted`,
+        "10": `No ${pinOrMsr} Key`,
+        "11": `${pinOrMsr} Key Not Bound`
+    });
+
     parseDeviceStatus = binaryString => (binaryString !== "00000000") ? ({
-        pinKeyStatus: this.pinKeyStatusEnum[ binaryString.slice(6) ],
-        msrKeyStatus: this.msrKeyStatusEnum[ binaryString.slice(4, 6) ],
+        pinKeyStatus: this.keyStatusEnum("PIN")[ binaryString.slice(6) ],
+        msrKeyStatus: this.keyStatusEnum("MSR")[ binaryString.slice(4, 6) ],
         tamperDetected: this.stringNumToBool( binaryString[3] ),
         isAuthenticated: this.stringNumToBool( binaryString[1] ),
         deviceErrorDetected: this.stringNumToBool( binaryString[0] )
@@ -396,9 +379,10 @@ class PinStatusParser extends PinUtils {
     });
 
     parseCardData = partialNotification => {
-        let trackKey = (this.cardDataIds[ partialNotification[1] ] || "trackNameUnknown");
-
-        if (partialNotification[2] === this.statusEnum.ok) {
+        const trackKey = (this.cardDataIds[ partialNotification[1] ] || `trackName${unknown}`);
+        
+        //0x00 === "Ok"
+        if (partialNotification[2] === 0x00) {
 
             switch(trackKey) {
                 case "track1":
@@ -440,7 +424,51 @@ class PinStatusParser extends PinUtils {
             }
         }
     }
-       
+
+    parsePinResponse = pinResp => {
+        this.logDeviceState(`[PIN Response]: Response from PIN Entry: ${this.convertArrayToHexString(pinResp)}`);
+        
+        return (pinResp.length > 2) ? ({
+            pinData: {
+                ...this.findOperationStatus(pinResp[1]),
+                pinKsn: this.convertArrayToHexString( pinResp.slice(2, 12) ),
+                encryptedPinBlock: this.convertArrayToHexString( pinResp.slice(12, 20) )
+            }
+        })
+        : this.findOperationStatus(pinResp[1]);
+    }
+
+    parseCardholderResponse = selectionResp => {
+        const deviceKeys = Object.freeze({
+            0x71: "Left function key",
+            0x72: "Middle function key",
+            0x74: "Right function key",
+            0x78: "Enter key"
+        });
+
+        return (selectionResp.length > 2) ? ({
+            ...this.findOperationStatus(selectionResp[1]),
+            keyPressed: (deviceKeys[ selectionResp[2] ] || `${unknownUndoc} Key`)
+        })
+        : this.findOperationStatus(selectionResp[1])
+    }
+    
+    parseTipCashbackReport = report => (report.length > 2) ? 
+        this.transactionCallback({
+            tipCashbackReport: {
+                    ...this.findOperationStatus(report[1]),
+                    reportMode: (report[2] === 0x00) ? "Tip" : "Cashback",
+                    amount: report.slice(3, 9),
+                    tax: report.slice(9, 15),
+                    taxRate: report.slice(15, 18),
+                    tipOrCashbackAmount: report.slice(18, 24)
+                }
+        })
+        : this.transactionCallback({
+            tipCashbackReport: {
+                ...this.findOperationStatus(report[1])
+            }
+        })
 }
 
 export default PinStatusParser;
