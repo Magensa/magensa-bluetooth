@@ -610,6 +610,29 @@ window.addEventListener('deviceLog', debugLogger, { passive: true});
 window.removeEventListener('deviceLog', debugLogger, { passive: true});
 ```  
 
+## _WebBluetooth Info_
+There are some [WebBluetooth](https://www.w3.org/community/web-bluetooth) issues that users of this library should be made aware of:  
+
+- The _initial_ pairing process (wherin the Chromium browser, and the Operating System coincide the Bluetooth Pair) can be a bit challenging at times. To that end, a comprehensive list of pairing instructions, based upon browser choice and operating system, has been put together in our [Playground](https://btplayground.magensa.dev/compatibility-info).
+    - Select a browser, operating system, expand the panel and click "Specific Details".
+    - Most all users that have trouble getting this library started, need to follow the instructions to the letter.
+        - Also, following the instructions to the letter, in addition to a device power cycle, will solve most all initial pairing issues.
+    - Remember this initial pair is one-time only, and does not need to be repeated to utilize the library (or any WebBluetooth solution) in the future.  
+  
+- There is a simple check that can be included in the web application that consumes this library, to see if the client is using a compatible browser.  That check is as follows:  
+    ```javascript
+        if (navigator && navigator.bluetooth) { 
+            //Compatible
+        }
+        else {
+            //Not Compatible browser
+        }
+    ```
+    - It is important to note that compatible browsers _will fail_ this check if the site is not deployed through secure context (valid https:// domain).
+        - ```localhost``` will work for development purposes, but it's important to note that ```192.168.0.1:``` and ```127.0.0.1``` will both fail the secure context check.
+            - This is especially important to consider for active mobile development.
+        - When a compatible browser fails the secure context check - the bluetooth property is removed from the ```navigator``` object. No other error or warning is emitted.
+
 ## _Transaction Amount Limitations_
 Please be aware that there are limitations on maximum amounts for transactions:  
 The maximum length of Transaction Amount, Calculated Tax Amount, Tip dollar amount, and Cash Back

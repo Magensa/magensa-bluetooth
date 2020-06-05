@@ -41,3 +41,7 @@ jspm_packages
 src/index.js
 
 package-lock.json
+
+#Production Bundles (these can be built from source at any time)
+dist/magensa-bluetooth.js
+dist/magensa-bluetooth.map
