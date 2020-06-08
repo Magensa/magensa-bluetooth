@@ -164,6 +164,7 @@ class PinStatusParser extends ParsePinConfig {
     });
 
     findOperationStatus = statusId => ({
+        operationStatusCode: statusId,
         operationStatus: (this.operationStatus[ statusId ] || `${unknownUndoc} Operation Status`)
     });
 
