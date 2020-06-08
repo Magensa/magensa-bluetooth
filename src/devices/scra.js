@@ -187,6 +187,7 @@ class Scra extends ScraCmdBuilder {
             return reject( this.buildDeviceErr(commandNotSent))
         }
         else {
+            writeCommand = (typeof(writeCommand) === 'string') ? this.hexToBytes(writeCommand) : writeCommand;
             this.logDeviceState(`Sending command: ${this.convertArrayToHexString(writeCommand)}`);
             this.commandSent = true;
 
