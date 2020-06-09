@@ -204,7 +204,7 @@ There are some differences between devices - so this section will be broken down
 | toneChoice | Select device beep behavior | String | ```'noSound', 'oneBeep', 'twoBeeps'``` | ```'oneBeep'``` | |
 | transactionAmount | Subtotal amount for transaction | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | N/A | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
 | calculatedTaxAmount | Total tax amount | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | N/A | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
-| taxRate | Tax percentage rate | Number or ```Array<Numbers>``` |  Number or 4 'byte' (n6 format x 100) representation of number | 0 - 99 | This number is for display purposes only - device does not perform tax calculations |
+| taxRate | Tax percentage rate | Number or ```Array<Numbers>``` |  Number or 4 'byte' (n6 format x 100) representation of number | 0 - 99 | This number is for display purposes only - device does not perform tax calculations. This value is only mandatory in Tip mode. N/A for Cashback Mode |
 | tipSelectionMode | Preset tip amount type | String | ```'percent', 'amount'``` | N/A | This value is only mandatory in Tip mode. N/A for Cashback Mode |
 | leftAmount | Fixed Percent or Amount for left display | Number | 0-99 | 0 | N/A for Cashback Mode |
 | middleAmount | Fixed Percent or Amount for middle display | Number | 0-99 | 0 | N/A for Cashback Mode |
