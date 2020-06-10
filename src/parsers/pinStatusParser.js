@@ -380,48 +380,58 @@ class PinStatusParser extends ParsePinConfig {
     });
 
     parseCardData = partialNotification => {
-        const trackKey = (this.cardDataIds[ partialNotification[1] ] || `trackName${unknown}`);
+        if (partialNotification.length !== 3) {
+            const trackKey = (this.cardDataIds[ partialNotification[1] ] || `trackName${unknown}`);
         
-        //0x00 === "Ok"
-        if (partialNotification[2] === 0x00) {
-
-            switch(trackKey) {
-                case "track1":
-                    this.cardDataObj = {
-                        ...this.cardDataObj,
-                        [trackKey]: this.bufferToUtf8(partialNotification.slice(4))
-                    }
-                    
-                    break;
-                case "track2":
-                    this.cardDataObj = {
-                        ...this.cardDataObj,
-                        [trackKey]: this.bufferToUtf8(partialNotification.slice(4)),
-                        ...this.formatExpPAN(
-                            partialNotification
-                        )
-                    }
-
-                    break;
-                case "ksnAndMagnePrintStatus":
-                    this.cardDataObj = {
-                        ...this.cardDataObj,
-                        ksn: this.convertArrayToHexString(partialNotification.slice(4, 14)),
-                        magnePrintStatus: this.convertArrayToHexString(partialNotification.slice(-4))
-                    }
-
-                    break;
-                default:
-                    this.cardDataObj = {
-                        ...this.cardDataObj,
-                        [trackKey]: this.convertArrayToHexString(partialNotification.slice(4))
-                    }
+            //0x00 === "Ok"
+            if (partialNotification[2] === 0x00) {
+    
+                switch(trackKey) {
+                    case "track1":
+                        this.cardDataObj = {
+                            ...this.cardDataObj,
+                            [trackKey]: this.bufferToUtf8(partialNotification.slice(4))
+                        }
+                        
+                        break;
+                    case "track2":
+                        this.cardDataObj = {
+                            ...this.cardDataObj,
+                            [trackKey]: this.bufferToUtf8(partialNotification.slice(4)),
+                            ...this.formatExpPAN(
+                                partialNotification
+                            )
+                        }
+    
+                        break;
+                    case "ksnAndMagnePrintStatus":
+                        this.cardDataObj = {
+                            ...this.cardDataObj,
+                            ksn: this.convertArrayToHexString(partialNotification.slice(4, 14)),
+                            magnePrintStatus: this.convertArrayToHexString(partialNotification.slice(-4))
+                        }
+    
+                        break;
+                    default:
+                        this.cardDataObj = {
+                            ...this.cardDataObj,
+                            [trackKey]: this.convertArrayToHexString(partialNotification.slice(4))
+                        }
+                }
+            }
+            else {
+                this.cardDataObj = {
+                    ...this.cardDataObj,
+                    [trackKey]: this.convertStatusToString[ partialNotification[2] ]
+                }
             }
         }
         else {
+            this.logDeviceState(`[INFO] Card Data Report contains no MSR data: ${this.convertArrayToHexString(commandResp)}`);
+
             this.cardDataObj = {
                 ...this.cardDataObj,
-                [trackKey]: this.convertStatusToString[ partialNotification[2] ]
+                emptySwipe: "MSR Card Data Report contains no data"
             }
         }
     }

@@ -252,13 +252,7 @@ class PinPad extends PinCmdBuilder {
             this.dataGathered = true;
         }
 
-        if (commandResp.length !== 3) {
-            this.parseCardData(commandResp)
-        }
-        else {
-            this.logDeviceState(`[Partial Data] Card Data Report contains no data: ${this.convertArrayToHexString(commandResp)}`);
-            this.logDeviceState();
-        }
+        this.parseCardData(commandResp);
     }
 
     requestCardSwipe = swipeOptions => new Promise( (resolve, reject) => {
@@ -266,7 +260,7 @@ class PinPad extends PinCmdBuilder {
         this.cardDataObj = {};
         this.logDeviceState(`[INFO]: MSR transaction has begun || ${new Date()}`)
 
-        return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
+        return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen) )
             : this.sendCommandWithResp( this.clearSessionCmd )
             .then( ackResp => {
                 this.transactionStatusCallback(ackResp);
