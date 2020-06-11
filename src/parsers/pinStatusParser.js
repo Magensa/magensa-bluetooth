@@ -427,7 +427,7 @@ class PinStatusParser extends ParsePinConfig {
             }
         }
         else {
-            this.logDeviceState(`[INFO] Card Data Report contains no MSR data: ${this.convertArrayToHexString(commandResp)}`);
+            this.logDeviceState(`[INFO] Card Data Report contains no MSR data: ${this.convertArrayToHexString(partialNotification)}`);
 
             this.cardDataObj = {
                 ...this.cardDataObj,

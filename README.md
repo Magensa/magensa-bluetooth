@@ -105,7 +105,7 @@ All methods are asynchronous (```isDeviceOpen``` being the only synchronous exce
 | sendCommand | ```Hex String``` or ```Array<Number>``` | ```object``` | send raw command to device. Output will be an object (if the response has a parser) or array (if returning raw device response) |
 | forceDisconnect | none | ```void``` | Sever device connection, in the case that the device becomes unresponsive |
 | requestPinEntry | [pinOptions](#PIN-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
-| setDisplayMessage | [displayOptions](#-Display-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
+| setDisplayMessage | [displayOptions](#Display-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
 | sendUserSelection | Number | [Success](#6-Success-Object) | SCRA devices only. This command is only used to respond to device's [userSelectionRequest](#10-User-Selection-Request) |
 | sendArpcResponse | ```Hex String``` or ```Array<Numbers>``` | [Success](#6-Success-Object) | For more information about building ARPC, please see the [MagTek® documentation](https://www.magtek.com/content/documentationfiles/d998200136.pdf#page=129) |
 | setDeviceDateTime | JavaScript [```Date```](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) object | [Success](#6-Success-Object) | SCRA devices only |
