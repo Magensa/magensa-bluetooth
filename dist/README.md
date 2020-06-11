@@ -105,7 +105,7 @@ All methods are asynchronous (```isDeviceOpen``` being the only synchronous exce
 | sendCommand | ```Hex String``` or ```Array<Number>``` | ```object``` | send raw command to device. Output will be an object (if the response has a parser) or array (if returning raw device response) |
 | forceDisconnect | none | ```void``` | Sever device connection, in the case that the device becomes unresponsive |
 | requestPinEntry | [pinOptions](#PIN-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
-| setDisplayMessage | [displayOptions](#-Display-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
+| setDisplayMessage | [displayOptions](#Display-Options-Object) | [Success](#6-Success-Object) | PinPad devices only |
 | sendUserSelection | Number | [Success](#6-Success-Object) | SCRA devices only. This command is only used to respond to device's [userSelectionRequest](#10-User-Selection-Request) |
 | sendArpcResponse | ```Hex String``` or ```Array<Numbers>``` | [Success](#6-Success-Object) | For more information about building ARPC, please see the [MagTek® documentation](https://www.magtek.com/content/documentationfiles/d998200136.pdf#page=129) |
 | setDeviceDateTime | JavaScript [```Date```](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) object | [Success](#6-Success-Object) | SCRA devices only |
@@ -204,7 +204,7 @@ There are some differences between devices - so this section will be broken down
 | toneChoice | Select device beep behavior | String | ```'noSound', 'oneBeep', 'twoBeeps'``` | ```'oneBeep'``` | |
 | transactionAmount | Subtotal amount for transaction | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | N/A | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
 | calculatedTaxAmount | Total tax amount | Number or ```Array<Numbers>``` | Number or 6 'byte' n12 format representation of number | N/A | No decimal points. Number type has [limitations](#Transaction-Amount-Limitations), please plan accordingly |
-| taxRate | Tax percentage rate | Number or ```Array<Numbers>``` |  Number or 4 'byte' (n6 format x 100) representation of number | 0 - 99 | This number is for display purposes only - device does not perform tax calculations |
+| taxRate | Tax percentage rate | Number or ```Array<Numbers>``` |  Number or 4 'byte' (n6 format x 100) representation of number | 0 - 99 | This number is for display purposes only - device does not perform tax calculations. taxRate is required |
 | tipSelectionMode | Preset tip amount type | String | ```'percent', 'amount'``` | N/A | This value is only mandatory in Tip mode. N/A for Cashback Mode |
 | leftAmount | Fixed Percent or Amount for left display | Number | 0-99 | 0 | N/A for Cashback Mode |
 | middleAmount | Fixed Percent or Amount for middle display | Number | 0-99 | 0 | N/A for Cashback Mode |
@@ -609,6 +609,29 @@ window.addEventListener('deviceLog', debugLogger, { passive: true});
 //Be sure to remove it when unmounting to avoid memory leaks:
 window.removeEventListener('deviceLog', debugLogger, { passive: true});
 ```  
+
+## _WebBluetooth Info_
+There are some [WebBluetooth](https://www.w3.org/community/web-bluetooth) issues that users of this library should be made aware of:  
+
+- The _initial_ pairing process (wherin the Chromium browser, and the Operating System coincide the Bluetooth Pair) can be a bit challenging at times. To that end, a comprehensive list of pairing instructions, based upon browser choice and operating system, has been put together in our [Playground](https://btplayground.magensa.dev/compatibility-info).
+    - Select a browser, operating system, expand the panel and click "Specific Details".
+    - Most all users that have trouble getting this library started, need to follow the instructions to the letter.
+        - Also, following the instructions to the letter, in addition to a device power cycle, will solve most all initial pairing issues.
+    - Remember this initial pair is one-time only, and does not need to be repeated to utilize the library (or any WebBluetooth solution) in the future.  
+  
+- There is a simple check that can be included in the web application that consumes this library, to see if the client is using a compatible browser.  That check is as follows:  
+    ```javascript
+        if (navigator && navigator.bluetooth) { 
+            //Compatible
+        }
+        else {
+            //Not Compatible browser
+        }
+    ```
+    - It is important to note that compatible browsers _will fail_ this check if the site is not deployed through secure context (valid https:// domain).
+        - ```localhost``` will work for development purposes, but it's important to note that ```192.168.0.1:``` and ```127.0.0.1``` will both fail the secure context check.
+            - This is especially important to consider for active mobile development.
+        - When a compatible browser fails the secure context check - the bluetooth property is removed from the ```navigator``` object. No other error or warning is emitted.
 
 ## _Transaction Amount Limitations_
 Please be aware that there are limitations on maximum amounts for transactions:  

@@ -127,8 +127,14 @@ class PinPad extends PinCmdBuilder {
                 this.commandSent = false;
                 return;
         }
-        else
-            return this.readCommandResp();
+        else {
+            try {
+                return this.readCommandResp();
+            }
+            catch(err) {
+                return this.errorCallback(err);
+            }
+        }
     }
 
     readCommandResp = () => new Promise( (resolve, reject) => (!this.receiveDataChar) ?
@@ -252,31 +258,23 @@ class PinPad extends PinCmdBuilder {
             this.dataGathered = true;
         }
 
-        if (commandResp.length !== 3) {
-            this.parseCardData(commandResp)
-        }
-        else {
-            this.logDeviceState(`[Partial Data] Card Data Report contains no data: ${this.convertArrayToHexString(commandResp)}`);
-            this.logDeviceState();
-        }
+        this.parseCardData(commandResp);
     }
 
-    requestCardSwipe = swipeOptions => new Promise( (resolve, reject) => {
-        this.swipeHasBegun = true;
-        this.cardDataObj = {};
-        this.logDeviceState(`[INFO]: MSR transaction has begun || ${new Date()}`)
-
-        return (!this.device.gatt.connected) ? reject( this.buildDeviceErr(deviceNotOpen))
-            : this.sendCommandWithResp( this.clearSessionCmd )
+    requestCardSwipe = swipeOptions => new Promise( (resolve, reject) => (!this.device.gatt.connected) ? 
+        reject( this.buildDeviceErr(deviceNotOpen) )
+        : this.clearSession()
             .then( ackResp => {
-                this.transactionStatusCallback(ackResp);
+                this.logDeviceState(`[INFO]: MSR transaction has begun || ${new Date()}`)
+                this.swipeHasBegun = true;
+                this.cardDataObj = {};
 
                 return this.sendCommandWithResp(
                     this.buildSwipeCommand( (swipeOptions || {}) )
                 )
             }).then( resp => resolve(resp)
             ).catch( err => reject(err))
-    });
+    );
         
     startTransaction = emvOptions => new Promise( (resolve, reject) => {
         this.transactionHasStarted = true;
@@ -437,7 +435,7 @@ class PinPad extends PinCmdBuilder {
         }).catch( err => {
             this.commandRespAvailable = false;
 
-            return reject( this.buildDeviceErr(err) )
+            return reject( this.buildDeviceErr(err) );
         })
     );
 
