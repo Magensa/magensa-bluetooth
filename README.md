@@ -99,7 +99,7 @@ All methods are asynchronous (```isDeviceOpen``` being the only synchronous exce
 | openDevice | none | [Success](#6-Success-Object) | Opens paired device to receive commands |
 | closeDevice | none | [Success](#6-Success-Object) | Clears session (when applicable) and closes device safely |
 | clearSession | Number (optional) | [Success](#6-Success-Object) | Removes previous card data from device's volatile memory. Only PinPad devices have session. Optional input is "Bitmap slot number" for displaying custom display templates |
-| deviceInfo | none | [Device Information](#7Device-Information) | Be aware this call will clear device session prior to returning device information |
+| deviceInfo | none | [Device Information](#7-Device-Information) | Be aware this call will clear device session prior to returning device information |
 | requestCardSwipe | [swipeOptions](#Swipe-Options-Object) | [Success](#6-Success-Object) | [swipeOptions](#Swipe-Options-Object) is optional. Any property supplied will override the default|
 | isDeviceOpen | none | ```Boolean``` | synchronous function that returns device's open status |
 | sendCommand | ```Hex String``` or ```Array<Number>``` | ```object``` | send raw command to device. Output will be an object (if the response has a parser) or array (if returning raw device response) |
