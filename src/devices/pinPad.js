@@ -119,7 +119,7 @@ class PinPad extends PinCmdBuilder {
     );
     
     dataWatcher = event => {
-        let dataEvent = event.target.value.getUint8(0);
+        const dataEvent = event.target.value.getUint8(0);
         this.logDeviceState(`[NOTIFY: AppDataToHostLength]: ${this.convertArrayToHexString([dataEvent])} || ${new Date()}`);
 
         if (this.commandSent && dataEvent === 3) {
@@ -202,7 +202,7 @@ class PinPad extends PinCmdBuilder {
             };
         }
         else
-            resolve( commandResp );
+            resolve();
     });
 
     handleBigBlockData = bigBlockData => {

@@ -85,8 +85,8 @@ class Scra extends ScraCmdBuilder {
     );
 
     dataReadyHandler = event => {
-        let eventValue = event.target.value;
-        let formattedEventValue = this.readByteArray(eventValue);
+        const eventValue = event.target.value;
+        const formattedEventValue = this.readByteArray(eventValue);
 
         this.logDeviceState(`[Data Ready Listener]: ${this.convertArrayToHexString(formattedEventValue)}`);
 
@@ -97,11 +97,11 @@ class Scra extends ScraCmdBuilder {
     }
 
     cardDataHandler = event => {
-        let eventValue = event.target.value;
+        const eventValue = event.target.value;
 
         //If the first position in the array === 255, card data notifications have finished.
         if (eventValue.getUint8(0) !== 255) {
-            let notificationArray = this.readByteArray(eventValue);
+            const notificationArray = this.readByteArray(eventValue);
 
             this.rawData = {
                 ...this.rawData,
