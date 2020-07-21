@@ -1,6 +1,6 @@
 {
   "name": "magensa-bluetooth",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Interface between Chromium browser and MagTek devices",
   "main": "magensa-bluetooth.js",
   "author": "Magensa™ LLC luke.turpin@magtek.com",

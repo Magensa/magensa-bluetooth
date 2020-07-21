@@ -34,9 +34,8 @@ class Utilities {
     readByteArray = dataView => {
         let valueArray = [];
         
-        for (let i = 0; i < dataView.byteLength; i++) {
+        for (let i = 0; i < dataView.byteLength; i++)
             valueArray.push(dataView.getUint8(i));
-        }
 
         return valueArray;
     }

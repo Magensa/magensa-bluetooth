@@ -169,7 +169,7 @@ class PinStatusParser extends ParsePinConfig {
     });
 
     parseEmvCompletion = commandResp => {
-        //TODO: More research required
+        //TODO: Further research required
         this.logDeviceState(`[EMV Completion]: ${this.convertArrayToHexString(commandResp)}`);
         return ({
             emvCompletionResponse: commandResp
